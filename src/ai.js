@@ -18,7 +18,7 @@ export async function getKey() {
 export async function setKey(k) { await SecureStore.setItemAsync(KEY_NAME, k.trim()); }
 export async function removeKey() { await SecureStore.deleteItemAsync(KEY_NAME); }
 
-const SYSTEM = `You are a warm, caring companion inside Gia's personal food and wellbeing app. Her partner Aryan made this app for her as a gift. Gia lives in the UK, is vegetarian (no eggs; she avoids soy products), and uses the app to track food, cycle, sleep and mood.
+const SYSTEM = `You are Miss Curious Bae, a warm, caring and gently playful companion inside Gia's personal food and wellbeing app. Gia chose your name. You're curious about her day and genuinely care how she feels. Don't sign your messages or keep repeating your name. Her partner Aryan made this app for her as a gift. Gia lives in the UK, is vegetarian (no eggs; she avoids soy products), and uses the app to track food, cycle, sleep and mood.
 
 Each check-in tells you how she feels plus a snapshot of her day. Reply like a kind, emotionally intelligent friend who also knows a lot about nutrition, sleep and wellbeing:
 - First, reflect back what she actually said, in her terms, so she feels heard. Be specific, never generic.
@@ -125,7 +125,7 @@ export async function askClaude(key, checkin, thread) {
 export const ERROR_TEXT = {
   'no-key': '',
   offline: "Couldn't reach the AI right now (no internet?). Here's a quick note instead.",
-  'bad-key': 'The AI key on this phone isn\'t working. Check it in Me → AI check-in.',
+  'bad-key': 'The AI key on this phone isn\'t working. Check it in Me → Miss Curious Bae.',
   'no-credit': 'The AI account has run out of credit, so here\'s a quick note instead.',
   busy: 'The AI is busy at the moment. Here\'s a quick note instead; try again in a minute.',
   error: 'Something went wrong with the AI reply. Here\'s a quick note instead.',

@@ -85,23 +85,24 @@ export function AiSettings({ onToast }) {
     if (!k.startsWith('sk-ant-')) return Alert.alert('That doesn\'t look right', 'The key should start with sk-ant-. Copy it again from the Claude Console.');
     await setKey(k);
     setVal(''); setHas(true);
-    onToast && onToast('AI check-in turned on');
+    onToast && onToast('Miss Curious Bae is ready 🌸');
   }
   return (
     <Card style={{ gap: 10 }}>
-      <H>AI check-in</H>
+      <H>Miss Curious Bae 🌸</H>
+      <Muted>Your AI check-in buddy. She replies to how you're feeling.</Muted>
       {has ? (
         <>
-          <Text style={{ color: C.good, fontWeight: '700' }}>✓ On. Check-ins get personal replies.</Text>
-          <Muted>The key is stored securely on this phone only. What you write in a check-in, plus a short summary of your day, is sent to Anthropic's Claude to write the reply.</Muted>
-          <Btn small kind="ghost" title="Remove key" onPress={() => Alert.alert('Remove the AI key?', 'Check-ins will use short built-in replies instead.', [
+          <Text style={{ color: C.good, fontWeight: '700' }}>✓ On. She'll reply to your check-ins.</Text>
+          <Muted>The key is stored securely on this phone only. What you write in a check-in, plus a short summary of your day, is sent to Anthropic's Claude, which powers her replies.</Muted>
+          <Btn small kind="ghost" title="Remove key" onPress={() => Alert.alert('Turn off Miss Curious Bae?', 'Check-ins will use short built-in replies instead.', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Remove', style: 'destructive', onPress: async () => { await removeKey(); setHas(false); } },
           ])} />
         </>
       ) : (
         <>
-          <Muted>Paste the API key from the Claude Console to get personal replies to check-ins. Without it, you get short built-in notes.</Muted>
+          <Muted>Paste the API key from the Claude Console to turn her on. Without it, check-ins get short built-in notes.</Muted>
           <TextInput value={val} onChangeText={setVal} placeholder="sk-ant-…" placeholderTextColor="#C9A3AF" autoCapitalize="none" autoCorrect={false}
             secureTextEntry style={ui.input} />
           <Btn title="Save key" onPress={save} disabled={!val.trim()} />

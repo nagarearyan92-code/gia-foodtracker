@@ -59,6 +59,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           </View>
         </Card>
 
+        <StepsCard date={date} />
         <CheckInCard dayKey={key} isToday={dayTitle(date) === 'Today'} />
         <PeriodBanner onOpen={onOpenCycle} />
         <RemindersInvite onToast={onToast} />
@@ -110,8 +111,6 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
         </Pressable>
 
         <SuppCard dayKey={key} />
-
-        <StepsCard date={date} />
 
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

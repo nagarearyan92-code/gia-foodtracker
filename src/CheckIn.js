@@ -32,6 +32,7 @@ export function CheckInCard({ dayKey, isToday }) {
       ) : (
         <View style={[card, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]}>
           <Text style={{ color: C.ink, fontWeight: '800', fontSize: 16 }}>{isToday ? 'How are you today?' : 'How were you this day?'}</Text>
+          <Muted style={{ marginTop: -6 }}>Check in with Miss Curious Bae 🌸</Muted>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             {MOODS.map(m => (
               <Pressable key={m.v} onPress={() => setOpen({ mood: m.v })} style={{ alignItems: 'center', padding: 4 }} hitSlop={6}>
@@ -42,7 +43,7 @@ export function CheckInCard({ dayKey, isToday }) {
           </View>
         </View>
       )}
-      <Sheet visible={!!open} title={isToday ? 'Check-in' : 'Check-in · ' + new Date(dayKey + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} onClose={() => setOpen(null)} scroll={false}>
+      <Sheet visible={!!open} title={isToday ? 'Miss Curious Bae 💗' : 'Miss Curious Bae · ' + new Date(dayKey + 'T12:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} onClose={() => setOpen(null)} scroll={false}>
         {open && <CheckInFlow dayKey={dayKey} existing={c} prefill={open} all={all} />}
       </Sheet>
     </>
@@ -95,13 +96,13 @@ function CheckInFlow({ dayKey, existing, prefill, all }) {
         <Section title="How are you feeling? Tell me about it">
           <TextInput value={c.feeling} onChangeText={v => set('feeling', v)} multiline placeholder="e.g. Long day at work, skipped lunch, feeling a bit flat and bloated…"
             placeholderTextColor="#C9A3AF" style={[ui.input, { minHeight: 110, textAlignVertical: 'top' }]} />
-          <Muted>This is what the reply responds to. Write as much or as little as you like.</Muted>
+          <Muted>Miss Curious Bae replies to this. Write as much or as little as you like.</Muted>
         </Section>
         <Section title="Private note (optional, just for you)">
           <TextInput value={c.note} onChangeText={v => set('note', v)} multiline placeholder="Not sent anywhere"
             placeholderTextColor="#C9A3AF" style={[ui.input, { minHeight: 60, textAlignVertical: 'top' }]} />
         </Section>
-        <Btn title="Save & get a reply 💗" disabled={!c.mood} onPress={async () => {
+        <Btn title="Save & talk to Miss Curious Bae 💗" disabled={!c.mood} onPress={async () => {
           const userText = c.feeling.trim() || 'Just checking in.';
           const next = { ...c, thread: c.thread.length ? c.thread : [{ role: 'user', text: userText }] };
           await saveCheckin(dayKey, next);
@@ -172,17 +173,20 @@ function Chat({ dayKey, c, setC, onEdit }) {
         </Pressable>
         {crisis ? <SafetyCard /> : null}
         {c.thread.map((m, i) => (
-          <View key={i} style={[bubble, m.role === 'user' ? mine : theirs]}>
+          <View key={i} style={{ gap: 3 }}>
+          {m.role === 'assistant' ? <Text style={{ fontSize: 12, fontWeight: '700', color: C.accent, marginLeft: 4 }}>Miss Curious Bae 🌸</Text> : null}
+          <View style={[bubble, m.role === 'user' ? mine : theirs]}>
             <Text style={{ color: m.role === 'user' ? '#fff' : C.ink, fontSize: 15, lineHeight: 22 }}>{m.text}</Text>
+          </View>
           </View>
         ))}
         {busy ? (
           <View style={[bubble, theirs, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}>
-            <ActivityIndicator color={C.accent} /><Muted>Thinking about what you said…</Muted>
+            <ActivityIndicator color={C.accent} /><Muted>Miss Curious Bae is thinking…</Muted>
           </View>
         ) : null}
         {notice ? <Muted>{notice}</Muted> : null}
-        {!hasKey ? <Muted>AI replies aren't set up on this phone yet, so these are short built-in notes. They can be turned on in Me → AI check-in.</Muted> : null}
+        {!hasKey ? <Muted>Miss Curious Bae isn't fully set up on this phone yet, so these are short built-in notes. Turn her on in Me → Miss Curious Bae.</Muted> : null}
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.surface, alignItems: 'flex-end' }}>
         <TextInput value={msg} onChangeText={setMsg} placeholder="Reply…" placeholderTextColor="#C9A3AF" multiline

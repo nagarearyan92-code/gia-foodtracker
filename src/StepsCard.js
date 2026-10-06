@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, Text, View } from 'react-native';
+import { AppState, Platform, Text, View } from 'react-native';
 import { C } from './theme';
 import { useGoals } from './store';
 import { connectSteps, openHealthConnectInstall, stepsForDays, stepsStatus } from './steps';
@@ -26,6 +26,14 @@ export default function StepsCard({ date }) {
     return () => sub.remove();
   }, [refresh]);
 
+  if (Platform.OS === 'web' && goals) {
+    return (
+      <Card style={{ gap: 8 }}>
+        <H>Steps 👟</H>
+        <Muted>On Gia's phone, her daily steps show here against her {(goals.steps || 8000).toLocaleString('en-GB')} step goal, from Health Connect. Steps can't be read in this browser preview.</Muted>
+      </Card>
+    );
+  }
   if (!status || status === 'unsupported' || !goals) return null;
   const goal = goals.steps || 8000;
 
