@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { C, MACROS, MEALS, MICROS } from '../theme';
 import { addWater, dateKey, removeEntry, sumNutrients, useDay, useGoals } from '../store';
 import AddFlow from '../AddFlow';
+import { RemindersInvite } from '../RemindersCard';
 import { Bar, Btn, Card, H, Muted, Ring, r0, r1 } from '../ui';
 
 function dayTitle(d) {
@@ -14,7 +15,7 @@ function dayTitle(d) {
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
-export default function Diary({ onToast }) {
+export default function Diary({ onToast, onOpenRecipes }) {
   const [date, setDate] = useState(() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; });
   const key = dateKey(date);
   const day = useDay(key) || { entries: [], water: 0 };
@@ -54,6 +55,8 @@ export default function Diary({ onToast }) {
           </View>
         </Card>
 
+        <RemindersInvite onToast={onToast} />
+
         <Pressable onPress={() => setFlow({ meal: 'Snacks', start: 'scan' })}
           style={({ pressed }) => [{ backgroundColor: C.accent, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}>
           <Text style={{ fontSize: 26 }}>▦</Text>
@@ -91,6 +94,14 @@ export default function Diary({ onToast }) {
             </Card>
           );
         })}
+
+        <Pressable onPress={onOpenRecipes} style={({ pressed }) => [{ backgroundColor: C.accentSoft, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.ink, fontWeight: '700' }}>Need ideas? 30 vegetarian recipes</Text>
+            <Muted>Dal makhani, palak paneer 2.0, protein mousse and more</Muted>
+          </View>
+          <Text style={{ color: C.accent, fontSize: 22, fontWeight: '800' }}>›</Text>
+        </Pressable>
 
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

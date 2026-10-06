@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, Animated, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { C } from './src/theme';
@@ -7,6 +7,8 @@ import Diary from './src/screens/Diary';
 import Browse from './src/screens/Browse';
 import Trends from './src/screens/Trends';
 import Me from './src/screens/Me';
+import { reschedule } from './src/reminders';
+import { onDiaryChange } from './src/store';
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -21,6 +23,14 @@ export default function App() {
   const [toast, setToast] = useState('');
   const fade = useRef(new Animated.Value(0)).current;
   const timer = useRef(null);
+
+  // Keep reminders planned ahead, and skip today's ones for meals already logged.
+  useEffect(() => {
+    reschedule();
+    const off = onDiaryChange(() => reschedule());
+    const sub = AppState.addEventListener('change', st => st === 'active' && reschedule());
+    return () => { off(); sub.remove(); };
+  }, []);
 
   const showToast = msg => {
     setToast(msg);
@@ -39,7 +49,7 @@ export default function App() {
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          {tab === 'diary' && <Diary onToast={showToast} />}
+          {tab === 'diary' && <Diary onToast={showToast} onOpenRecipes={() => setTab('recipes')} />}
           {tab === 'foods' && <Browse mode="foods" onToast={showToast} />}
           {tab === 'recipes' && <Browse mode="recipes" onToast={showToast} />}
           {tab === 'trends' && <Trends />}

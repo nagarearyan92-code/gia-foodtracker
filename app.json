@@ -24,7 +24,8 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -37,6 +38,13 @@
           "cameraPermission": "Gia Food Tracker uses the camera to scan food barcodes.",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#C2456F"
         }
       ]
     ],

@@ -11,6 +11,10 @@ import { NUTRIENT_KEYS } from './theme';
 export const DEFAULT_GOALS = { k: 2000, p: 100, c: 230, f: 70, fi: 30, water: 2000 };
 
 const listeners = new Set();
+const diaryHooks = new Set();
+// Called after diary entries change (used to re-plan reminders).
+export function onDiaryChange(fn) { diaryHooks.add(fn); return () => diaryHooks.delete(fn); }
+const diaryChanged = () => diaryHooks.forEach(fn => { try { fn(); } catch (e) {} });
 function notify() { listeners.forEach(fn => fn()); }
 
 async function readJSON(key, fallback) {
@@ -21,6 +25,8 @@ async function readJSON(key, fallback) {
     return fallback;
   }
 }
+export async function readSetting(key, fallback) { return readJSON(key, fallback); }
+export async function writeSetting(key, value) { return writeJSON(key, value); }
 async function writeJSON(key, value) {
   await AsyncStorage.setItem(key, JSON.stringify(value));
   notify();
@@ -74,11 +80,13 @@ export async function addEntry(key, entry) {
   const day = await readJSON('day:' + key, { entries: [], water: 0 });
   day.entries.push({ id: uid(), ...entry });
   await writeJSON('day:' + key, day);
+  diaryChanged();
 }
 export async function removeEntry(key, id) {
   const day = await readJSON('day:' + key, { entries: [], water: 0 });
   day.entries = day.entries.filter(e => e.id !== id);
   await writeJSON('day:' + key, day);
+  diaryChanged();
 }
 export async function addWater(key, ml) {
   const day = await readJSON('day:' + key, { entries: [], water: 0 });

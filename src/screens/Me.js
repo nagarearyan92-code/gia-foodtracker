@@ -3,6 +3,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { C } from '../theme';
 import { dateKey, deleteWeight, logWeight, saveGoals, useGoals, useWeights } from '../store';
 import { Btn, Card, Field, H, Muted, r1 } from '../ui';
+import RemindersCard from '../RemindersCard';
 
 export default function Me({ onToast }) {
   const goals = useGoals();
@@ -39,6 +40,8 @@ export default function Me({ onToast }) {
           You don't have to be perfect with it. Some days you'll log everything, some days you'll forget, and that's completely fine. I'm proud of you for taking care of yourself, and I'm right here cheering you on, one meal at a time.
         </Text>
       </Card>
+
+      <RemindersCard onToast={onToast} />
 
       <Card style={{ gap: 10 }}>
         <H>Weight</H>
