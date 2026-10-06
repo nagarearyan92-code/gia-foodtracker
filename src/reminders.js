@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { dateKey, loadDays } from './store';
 import { addDays, loadCycle, predict } from './cycle';
+import { loadCheckins, loadSuppLog, loadSupps } from './wellbeing';
 
 // Gentle, local food-logging reminders. Nothing leaves the phone.
 // Smart part: each reminder is scheduled per day, and a meal's reminder is skipped
@@ -18,8 +19,12 @@ export const REMINDERS = [
     title: 'Lunch check-in 🥗', body: "What did you have for lunch? A quick log keeps today on track." },
   { key: 'Dinner', label: 'Dinner', hour: 19, minute: 30,
     title: 'Dinner time 🍲', body: "Log your dinner and see how close you are to your protein goal." },
-  { key: 'Evening', label: 'Evening wrap-up', hour: 21, minute: 0,
-    title: 'How did today go? 💗', body: "Anything not logged yet? No pressure, every bit counts." },
+  { key: 'Supps', label: 'Supplements', hour: 9, minute: 0,
+    title: 'Vitamin D & iron 💊', body: "Little reminder to take your supplements today." },
+  { key: 'CheckIn', label: 'Evening check-in', hour: 20, minute: 30,
+    title: 'How was today? 💗', body: "Take a minute to check in: how are you feeling?" },
+  { key: 'Evening', label: 'Food wrap-up', hour: 21, minute: 0,
+    title: 'Anything to log? 🍽️', body: "Anything not logged yet? No pressure, every bit counts." },
 ];
 
 export const DEFAULT_SETTINGS = {
@@ -78,15 +83,23 @@ export async function reschedule(settingsArg) {
     if (settings.enabled) {
       const [today] = await loadDays([dateKey(now)]);
       const loggedMeals = new Set(today.entries.map(e => e.meal));
+      const todayKey = dateKey(now);
+      const checkedIn = !!(await loadCheckins())[todayKey]?.mood;
+      const supps = await loadSupps();
+      const taken = (await loadSuppLog())[todayKey] || [];
+      const suppsDone = !supps.length || supps.every(x => taken.includes(x.id));
       for (let d = 0; d < DAYS_AHEAD; d++) {
         for (const r of REMINDERS) {
           const it = settings.items[r.key];
           if (!it || !it.on) continue;
           const when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, it.hour, it.minute, 0);
           if (when <= now) continue;
+          if (r.key === 'Supps' && !supps.length) continue;
           if (d === 0) {
-            if (r.key !== 'Evening' && loggedMeals.has(r.key)) continue;
+            if (['Breakfast', 'Lunch', 'Dinner'].includes(r.key) && loggedMeals.has(r.key)) continue;
             if (r.key === 'Evening' && loggedMeals.size >= 3) continue;
+            if (r.key === 'CheckIn' && checkedIn) continue;
+            if (r.key === 'Supps' && suppsDone) continue;
           }
           await Notifications.scheduleNotificationAsync({
             content: { title: r.title, body: r.body },

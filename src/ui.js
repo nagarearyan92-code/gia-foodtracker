@@ -15,8 +15,8 @@ export function H({ children, style }) {
   return <Text style={[s.h, style]}>{children}</Text>;
 }
 
-export function Muted({ children, style }) {
-  return <Text style={[s.muted, style]}>{children}</Text>;
+export function Muted({ children, style, ...rest }) {
+  return <Text style={[s.muted, style]} {...rest}>{children}</Text>;
 }
 
 export function Btn({ title, onPress, kind = 'primary', small, style, disabled }) {

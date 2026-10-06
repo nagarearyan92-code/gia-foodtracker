@@ -6,6 +6,8 @@ import AddFlow from '../AddFlow';
 import { RemindersInvite } from '../RemindersCard';
 import StepsCard from '../StepsCard';
 import { PeriodBanner } from './Cycle';
+import { CheckInCard } from '../CheckIn';
+import { SuppCard } from '../WellbeingCards';
 import { Bar, Btn, Card, H, Muted, Ring, r0, r1 } from '../ui';
 
 function dayTitle(d) {
@@ -57,6 +59,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           </View>
         </Card>
 
+        <CheckInCard dayKey={key} isToday={dayTitle(date) === 'Today'} />
         <PeriodBanner onOpen={onOpenCycle} />
         <RemindersInvite onToast={onToast} />
 
@@ -105,6 +108,8 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           </View>
           <Text style={{ color: C.accent, fontSize: 22, fontWeight: '800' }}>›</Text>
         </Pressable>
+
+        <SuppCard dayKey={key} />
 
         <StepsCard date={date} />
 

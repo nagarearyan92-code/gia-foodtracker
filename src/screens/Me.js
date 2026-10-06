@@ -5,6 +5,7 @@ import { dateKey, deleteWeight, logWeight, saveGoals, useGoals, useWeights } fro
 import { Btn, Card, Field, H, Muted, r1 } from '../ui';
 import RemindersCard from '../RemindersCard';
 import TdeeCard, { autoUpdateTargets } from '../TdeeCard';
+import { AiSettings, SuppSettings } from '../WellbeingCards';
 
 export default function Me({ onToast }) {
   const goals = useGoals();
@@ -44,7 +45,11 @@ export default function Me({ onToast }) {
         </Text>
       </Card>
 
+      <AiSettings onToast={onToast} />
+
       <RemindersCard onToast={onToast} />
+
+      <SuppSettings onToast={onToast} />
 
       <Card style={{ gap: 10 }}>
         <H>Weight</H>

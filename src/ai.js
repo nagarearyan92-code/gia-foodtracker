@@ -1,0 +1,153 @@
+// Personal check-in replies from Claude (Anthropic API). The API key lives only on this phone,
+// in Android's secure storage. Without a key, or offline, a short built-in reply is used instead.
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { dateKey, loadDays, readSetting, sumNutrients } from './store';
+import { DEFAULT_GOALS } from './store';
+import { loadCycle, predict, PHASES } from './cycle';
+import { ENERGY, MOODS, SLEEP_Q, loadCheckins, loadSuppLog, loadSupps } from './wellbeing';
+import { RECIPES } from './data';
+
+const MODEL = 'claude-sonnet-5-5';
+const KEY_NAME = 'anthropic_api_key';
+
+export async function getKey() {
+  if (Platform.OS === 'web') return null;
+  try { return await SecureStore.getItemAsync(KEY_NAME); } catch (e) { return null; }
+}
+export async function setKey(k) { await SecureStore.setItemAsync(KEY_NAME, k.trim()); }
+export async function removeKey() { await SecureStore.deleteItemAsync(KEY_NAME); }
+
+const SYSTEM = `You are a warm, caring companion inside Gia's personal food and wellbeing app. Her partner Aryan made this app for her as a gift. Gia lives in the UK, is vegetarian (no eggs; she avoids soy products), and uses the app to track food, cycle, sleep and mood.
+
+Each check-in tells you how she feels plus a snapshot of her day. Reply like a kind, emotionally intelligent friend who also knows a lot about nutrition, sleep and wellbeing:
+- First, reflect back what she actually said, in her terms, so she feels heard. Be specific, never generic.
+- Then offer 2 or 3 small, practical, gentle ideas that fit her situation right now (her food so far, sleep, cycle phase, energy, time of day). Where food helps, suggest simple vegetarian options, and you may name one of her saved recipes.
+- Keep it short: about 90 to 160 words, plain text, no headings or bullet symbols, at most one emoji.
+- Never shame or pressure her about food, weight or calories, and never suggest restricting or skipping meals. If she has eaten little, encourage nourishing food.
+- Don't diagnose. If something sounds medical or keeps happening, gently suggest her GP or a pharmacist.
+- If she mentions hopelessness, self-harm, not wanting to be here, or being unsafe, respond with real care, tell her she matters and she doesn't have to handle it alone, and encourage her to reach out now: Samaritans on 116 123 (free, 24/7, UK), texting SHOUT to 85258, or 999 / A&E if she's in immediate danger. Suggest telling Aryan or someone she trusts.
+- For follow-up messages, continue the conversation naturally and keep replies brief.`;
+
+const fmtTime = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+// A short snapshot of her day for context.
+export async function buildContext(key) {
+  const date = new Date(key + 'T12:00');
+  const isToday = key === dateKey(new Date());
+  const [day] = await loadDays([key]);
+  const goals = { ...DEFAULT_GOALS, ...(await readSetting('goals', {})) };
+  const t = sumNutrients(day.entries.map(e => e.n));
+  const meals = [...new Set(day.entries.map(e => e.meal))];
+  const lines = [];
+  lines.push(`Date: ${date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}${isToday ? `, time now ${fmtTime(new Date())}` : ''}.`);
+  lines.push(day.entries.length
+    ? `Food logged: ${Math.round(t.k || 0)} of ${goals.k} kcal, protein ${Math.round(t.p || 0)}/${goals.p} g, fibre ${Math.round(t.fi || 0)}/${goals.fi} g. Meals logged: ${meals.join(', ')}. Items: ${day.entries.slice(-8).map(e => e.name).join('; ')}.`
+    : 'No food logged yet today.');
+  lines.push(`Water: ${day.water || 0} of ${goals.water} ml.`);
+
+  try {
+    const steps = require('./steps');
+    if ((await steps.stepsStatus()) === 'connected') {
+      const [n] = await steps.stepsForDays([date]);
+      if (n != null) lines.push(`Steps: ${n} (goal ${goals.steps || 8000}).`);
+    }
+  } catch (e) { /* steps optional */ }
+
+  const cyc = predict(await loadCycle(), date);
+  if (cyc.hasData) {
+    lines.push(`Cycle: day ${cyc.cycleDay}, ${PHASES[cyc.phase].label.toLowerCase()}${cyc.phase !== 'period' && cyc.daysToNext >= 0 && cyc.daysToNext <= 5 ? `, period due in about ${cyc.daysToNext} days` : ''}${cyc.late ? `, period ${cyc.late} days late` : ''}.`);
+  }
+
+  const supps = await loadSupps();
+  const taken = (await loadSuppLog())[key] || [];
+  if (supps.length) lines.push(`Supplements today: ${supps.map(s => `${s.name} ${taken.includes(s.id) ? 'taken' : 'not yet'}`).join(', ')}.`);
+
+  const all = await loadCheckins();
+  const recent = [];
+  for (let i = 1; i <= 3; i++) {
+    const c = all[dateKey(new Date(date.getTime() - i * 864e5))];
+    if (c && c.mood) recent.push(`${i === 1 ? 'yesterday' : i + ' days ago'}: mood ${c.mood}/5${c.sleepH ? `, slept ${c.sleepH} h` : ''}`);
+  }
+  if (recent.length) lines.push(`Recent check-ins: ${recent.join('; ')}.`);
+
+  const ideas = RECIPES.filter(r => r.tags.includes('High protein')).slice(0, 8).map(r => r.name);
+  lines.push(`Some of her saved recipes: ${ideas.join(', ')}.`);
+  return lines.join('\n');
+}
+
+export function describeCheckin(c) {
+  const parts = [];
+  if (c.mood) parts.push(`Mood: ${MOODS.find(m => m.v === c.mood).label} (${c.mood}/5)`);
+  if (c.energy) parts.push(`Energy: ${ENERGY.find(e => e[0] === c.energy)[1]}`);
+  if (c.sleepH) parts.push(`Sleep: ${c.sleepH} hours${c.sleepQ ? ', ' + SLEEP_Q.find(q => q[0] === c.sleepQ)[1].toLowerCase() : ''}`);
+  if (c.tags?.length) parts.push(`Feeling: ${c.tags.join(', ').toLowerCase()}`);
+  return parts.join('. ') + '.';
+}
+
+// thread: [{ role: 'user'|'assistant', text }]. Returns { text, source: 'ai' } or throws { code, message }.
+export async function askClaude(key, checkin, thread) {
+  const apiKey = await getKey();
+  if (!apiKey) throw { code: 'no-key' };
+  const ctx = await buildContext(key);
+  const first = `Here's my check-in.\n${describeCheckin(checkin)}\n${checkin.feeling ? `In my own words: ${checkin.feeling}` : "I didn't write anything else."}\n\n[Snapshot of my day, for context]\n${ctx}`;
+  const msgs = [{ role: 'user', content: first }, ...thread.slice(1).map(m => ({ role: m.role, content: m.text }))].slice(-14);
+  if (msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: first });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: MODEL, max_tokens: 500, system: SYSTEM, messages: msgs }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    throw { code: 'offline' };
+  } finally {
+    clearTimeout(timer);
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* ignore */ }
+  if (!res.ok) {
+    const msg = data?.error?.message || '';
+    if (res.status === 401) throw { code: 'bad-key' };
+    if (/credit balance/i.test(msg) || res.status === 402) throw { code: 'no-credit' };
+    if (res.status === 429 || res.status === 529 || res.status >= 500) throw { code: 'busy' };
+    throw { code: 'error', message: msg };
+  }
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  return { text, source: 'ai' };
+}
+
+export const ERROR_TEXT = {
+  'no-key': '',
+  offline: "Couldn't reach the AI right now (no internet?). Here's a quick note instead.",
+  'bad-key': 'The AI key on this phone isn\'t working. Check it in Me → AI check-in.',
+  'no-credit': 'The AI account has run out of credit, so here\'s a quick note instead.',
+  busy: 'The AI is busy at the moment. Here\'s a quick note instead; try again in a minute.',
+  error: 'Something went wrong with the AI reply. Here\'s a quick note instead.',
+};
+
+// Built-in reply when the AI isn't available.
+export async function localReply(key, c) {
+  const cyc = predict(await loadCycle(), new Date(key + 'T12:00'));
+  const [day] = await loadDays([key]);
+  const t = sumNutrients(day.entries.map(e => e.n));
+  const out = [];
+  const low = c.mood && c.mood <= 2;
+  const heavy = c.energy === 'low' || (c.tags || []).some(t => ['Stressed', 'Anxious', 'Overwhelmed', 'Sad', 'Lonely'].includes(t));
+  out.push(low ? "Thank you for checking in, especially on a harder day. It's okay not to feel great."
+    : c.mood >= 4 && !heavy ? 'Love that you\'re feeling good today!' : 'Thanks for checking in. Sounds like a bit of a mixed day.');
+  if (/skip|didn'?t eat|haven'?t eaten|no (lunch|breakfast|dinner)|forgot to eat/i.test(c.feeling || '')) out.push("If you've missed a meal, something nourishing soon will help your energy and mood, even something simple like a dal with rice or cottage cheese on toast.");
+  if (c.sleepH && c.sleepH < 6) out.push('Short sleep makes everything feel heavier. An earlier, screen-free wind-down tonight could really help.');
+  if (c.energy === 'low' && cyc.hasData && cyc.phase === 'period') out.push('Low energy on your period is common. Iron-rich food like dal, spinach or kala chana, with something containing vitamin C, can help.');
+  else if (c.energy === 'low' && (t.p || 0) < 30) out.push('A protein-rich meal or snack might lift your energy, like the cottage cheese crunch bowl or a dal.');
+  if (c.tags?.includes('Stressed') || c.tags?.includes('Anxious') || c.tags?.includes('Overwhelmed')) out.push('Try a few slow breaths: in for 4, hold for 4, out for 6. Even two minutes helps.');
+  if (low && cyc.hasData && (cyc.phase === 'luteal' && cyc.daysToNext <= 5)) out.push('Your period is due soon, and mood often dips in these days. It usually passes.');
+  if ((day.water || 0) < 750 && new Date().getHours() >= 14) out.push('A glass of water might help too.');
+  if (out.length < 3) out.push(low ? 'A short walk outside or a chat with someone you love can make a real difference.' : 'Keep being kind to yourself 💗');
+  return { text: out.join(' '), source: 'local' };
+}

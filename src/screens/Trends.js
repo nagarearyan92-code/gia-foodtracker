@@ -5,6 +5,9 @@ import { C } from '../theme';
 import { dateKey, loadDays, sumNutrients, useDay, useGoals, useWeights } from '../store';
 import { Card, Chip, H, Muted, r0, r1 } from '../ui';
 import { stepsForDays, stepsStatus } from '../steps';
+import { loadCycle } from '../cycle';
+import { loadCheckins } from '../wellbeing';
+import { buildInsights } from '../insights';
 
 function lastNDays(n) {
   const out = [];
@@ -30,8 +33,9 @@ function BarChart({ data, target, color, width, unit }) {
       ))}
       {data.map((d, i) => (
         <Rect key={i} x={padL + i * bw + bw * 0.18} width={bw * 0.64} y={y(d.v)} height={Math.max(0, padT + plotH - y(d.v))}
-          rx={Math.min(4, bw * 0.2)} fill={d.v > 0 ? color : C.sunk} />
+          rx={Math.min(4, bw * 0.2)} fill={d.v > 0 ? d.color || color : C.sunk} />
       ))}
+      {data.map((d, i) => d.mark ? <Circle key={'m' + i} cx={padL + i * bw + bw / 2} cy={padT + plotH + 4} r={2.6} fill={C.accent} /> : null)}
       <Line x1={padL} x2={width - 8} y1={y(target)} y2={y(target)} stroke={C.ink} strokeDasharray="4 4" strokeWidth={1.2} />
       {data.map((d, i) => (data.length <= 7 || i % 5 === 0 || i === data.length - 1) ? (
         <SvgText key={'l' + i} x={padL + i * bw + bw / 2} y={h - 6} fontSize={10} fill={C.muted} textAnchor="middle">{d.label}</SvgText>
@@ -68,6 +72,7 @@ export default function Trends() {
   const [range, setRange] = useState(7);
   const [days, setDays] = useState(null);
   const [steps, setSteps] = useState(null);
+  const [well, setWell] = useState(null);
   const goals = useGoals();
   const weights = useWeights() || [];
   const today = useDay(dateKey(new Date())); // re-render when today changes
@@ -77,6 +82,7 @@ export default function Trends() {
   useEffect(() => {
     const ds = lastNDays(range);
     loadDays(ds.map(dateKey)).then(list => setDays(ds.map((d, i) => ({ d, t: sumNutrients(list[i].entries.map(e => e.n)), water: list[i].water || 0 }))));
+    Promise.all([loadCheckins(), loadCycle()]).then(([ci, cyc]) => setWell({ ci, cyc }));
     stepsStatus().then(st => (st === 'connected' ? stepsForDays(ds).then(setSteps) : setSteps(null)));
   }, [range, today]);
 
@@ -110,6 +116,8 @@ export default function Trends() {
       <Card><H style={{ marginBottom: 8 }}>Protein (g)</H><BarChart data={series('p')} target={goals.p} color={C.protein} width={chartW} /><Muted>Dashed line: your {goals.p} g target</Muted></Card>
       <Card><H style={{ marginBottom: 8 }}>Fibre (g)</H><BarChart data={series('fi')} target={goals.fi} color={C.fibre} width={chartW} /><Muted>Dashed line: your {goals.fi} g target</Muted></Card>
 
+      {well ? <MoodSleep days={days} well={well} goals={goals} steps={steps} label={label} chartW={chartW} /> : null}
+
       {steps && steps.some(v => v != null) ? (
         <Card>
           <H style={{ marginBottom: 8 }}>Steps</H>
@@ -125,5 +133,43 @@ export default function Trends() {
         {weights.length ? <WeightChart points={weights.slice(-30)} width={chartW} /> : <Muted>Log your weight on the Me tab to see it here.</Muted>}
       </Card>
     </ScrollView>
+  );
+}
+
+const MOOD_COL = ['#B4362A', '#E77A9C', '#C9A3AF', '#7CC48D', '#2E7D4F'];
+
+function MoodSleep({ days, well, goals, steps, label, chartW }) {
+  const { ci, cyc } = well;
+  const periodDay = d => { const r = cyc.days?.[dateKey(d)]; return !!(r && r.flow && r.flow !== 'spotting'); };
+  const rows = days.map(x => ({ x, c: ci[dateKey(x.d)] }));
+  const n = rows.filter(r => r.c?.mood).length;
+  const insights = buildInsights(ci, cyc, goals);
+  return (
+    <>
+      <Card>
+        <H style={{ marginBottom: 8 }}>Mood</H>
+        {n ? (
+          <>
+            <BarChart data={rows.map(r => ({ v: r.c?.mood || 0, label: label(r.x.d), color: r.c?.mood ? MOOD_COL[r.c.mood - 1] : null, mark: periodDay(r.x.d) }))} target={4} color={C.accent} width={chartW} />
+            <Muted>1 = awful, 5 = great · dashed line: "good" · pink dots: period days</Muted>
+          </>
+        ) : <Muted>Check in on the Diary to see your mood here.</Muted>}
+      </Card>
+      <Card>
+        <H style={{ marginBottom: 8 }}>Sleep (hours)</H>
+        {rows.some(r => r.c?.sleepH) ? (
+          <>
+            <BarChart data={rows.map(r => ({ v: r.c?.sleepH || 0, label: label(r.x.d), mark: periodDay(r.x.d) }))} target={8} color={C.water} width={chartW} />
+            <Muted>Dashed line: 8 hours</Muted>
+          </>
+        ) : <Muted>Sleep from your check-ins will show here.</Muted>}
+      </Card>
+      <Card style={{ gap: 8 }}>
+        <H>Patterns 🔍</H>
+        {insights.length
+          ? insights.map((t, i) => <Text key={i} style={{ color: C.ink, lineHeight: 21 }}>• {t}</Text>)
+          : <Muted>After about two weeks of check-ins, this shows how your sleep, food, cycle and mood connect.</Muted>}
+      </Card>
+    </>
   );
 }

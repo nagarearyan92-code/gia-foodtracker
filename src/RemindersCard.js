@@ -58,7 +58,7 @@ export default function RemindersCard({ onToast }) {
         <Switch value={s.enabled} onValueChange={toggleAll} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
       </View>
       <Muted>
-        Gentle nudges to log your food. If you've already logged a meal, that day's reminder for it is skipped.
+        Gentle nudges for meals, supplements and an evening check-in. Anything you've already done that day is skipped.
       </Muted>
       {s.enabled && REMINDERS.map(r => {
         const it = s.items[r.key];
@@ -88,8 +88,8 @@ export function RemindersInvite({ onToast }) {
   if (!show) return null;
   return (
     <Card style={{ backgroundColor: C.accentSoft, borderColor: C.accentSoft, gap: 10 }}>
-      <Text style={{ color: C.ink, fontWeight: '700', fontSize: 15 }}>🔔 Want a little nudge to log your meals?</Text>
-      <Muted>Turn on reminders at breakfast, lunch, dinner and in the evening. You can change the times on the Me tab.</Muted>
+      <Text style={{ color: C.ink, fontWeight: '700', fontSize: 15 }}>🔔 Want a little nudge now and then?</Text>
+      <Muted>Reminders for meals, supplements and an evening check-in. You can change the times on the Me tab.</Muted>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn small title="Turn on reminders" style={{ flex: 2 }}
           onPress={async () => { if (await turnOnReminders()) { setShow(false); onToast && onToast('Reminders on'); } }} />
