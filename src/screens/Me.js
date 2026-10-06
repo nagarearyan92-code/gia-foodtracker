@@ -4,6 +4,7 @@ import { C } from '../theme';
 import { dateKey, deleteWeight, logWeight, saveGoals, useGoals, useWeights } from '../store';
 import { Btn, Card, Field, H, Muted, r1 } from '../ui';
 import RemindersCard from '../RemindersCard';
+import TdeeCard, { autoUpdateTargets } from '../TdeeCard';
 
 export default function Me({ onToast }) {
   const goals = useGoals();
@@ -11,7 +12,8 @@ export default function Me({ onToast }) {
   const [g, setG] = useState(null);
   const [kg, setKg] = useState('');
 
-  useEffect(() => { if (goals && !g) setG(Object.fromEntries(Object.entries(goals).map(([k, v]) => [k, String(v)]))); }, [goals]); // eslint-disable-line
+  const goalsKey = goals ? JSON.stringify(goals) : '';
+  useEffect(() => { if (goals) setG(Object.fromEntries(Object.entries(goals).map(([k, v]) => [k, String(v)]))); }, [goalsKey]); // eslint-disable-line
   if (!g) return null;
   const set = k => t => setG(x => ({ ...x, [k]: t }));
   const lastKg = weights.length ? weights[weights.length - 1].kg : null;
@@ -27,7 +29,8 @@ export default function Me({ onToast }) {
     if (!v || v < 25 || v > 250) return Alert.alert('Check the number', 'Enter your weight in kg, e.g. 62.5');
     await logWeight(dateKey(new Date()), v);
     setKg('');
-    onToast('Weight logged');
+    const updated = await autoUpdateTargets(v);
+    onToast(updated ? 'Weight logged, targets updated' : 'Weight logged');
   }
 
   return (
@@ -57,12 +60,14 @@ export default function Me({ onToast }) {
         ))}
       </Card>
 
+      <TdeeCard onToast={onToast} />
+
       <Card style={{ gap: 10 }}>
         <H>Daily targets</H>
         <Muted>A common starting point for active adults is 1.2–1.6 g protein per kg of body weight and about 30 g fibre a day.</Muted>
         {lastKg ? <Btn small kind="ghost" title={`Set protein to 1.4 g/kg (${Math.round(lastKg * 1.4)} g)`} onPress={() => set('p')(String(Math.round(lastKg * 1.4)))} /> : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {[['k', 'Calories'], ['p', 'Protein g'], ['c', 'Carbs g'], ['f', 'Fat g'], ['fi', 'Fibre g'], ['water', 'Water ml']].map(([k, l]) => (
+          {[['k', 'Calories'], ['p', 'Protein g'], ['c', 'Carbs g'], ['f', 'Fat g'], ['fi', 'Fibre g'], ['water', 'Water ml'], ['steps', 'Steps']].map(([k, l]) => (
             <Field key={k} label={l} value={g[k]} onChangeText={set(k)} numeric style={{ minWidth: '30%' }} />
           ))}
         </View>

@@ -4,6 +4,8 @@ import { C, MACROS, MEALS, MICROS } from '../theme';
 import { addWater, dateKey, removeEntry, sumNutrients, useDay, useGoals } from '../store';
 import AddFlow from '../AddFlow';
 import { RemindersInvite } from '../RemindersCard';
+import StepsCard from '../StepsCard';
+import { PeriodBanner } from './Cycle';
 import { Bar, Btn, Card, H, Muted, Ring, r0, r1 } from '../ui';
 
 function dayTitle(d) {
@@ -15,7 +17,7 @@ function dayTitle(d) {
   return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
-export default function Diary({ onToast, onOpenRecipes }) {
+export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
   const [date, setDate] = useState(() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; });
   const key = dateKey(date);
   const day = useDay(key) || { entries: [], water: 0 };
@@ -55,6 +57,7 @@ export default function Diary({ onToast, onOpenRecipes }) {
           </View>
         </Card>
 
+        <PeriodBanner onOpen={onOpenCycle} />
         <RemindersInvite onToast={onToast} />
 
         <Pressable onPress={() => setFlow({ meal: 'Snacks', start: 'scan' })}
@@ -102,6 +105,8 @@ export default function Diary({ onToast, onOpenRecipes }) {
           </View>
           <Text style={{ color: C.accent, fontSize: 22, fontWeight: '800' }}>›</Text>
         </Pressable>
+
+        <StepsCard date={date} />
 
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

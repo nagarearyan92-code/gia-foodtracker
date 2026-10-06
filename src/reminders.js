@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { dateKey, loadDays } from './store';
+import { addDays, loadCycle, predict } from './cycle';
 
 // Gentle, local food-logging reminders. Nothing leaves the phone.
 // Smart part: each reminder is scheduled per day, and a meal's reminder is skipped
@@ -70,29 +71,44 @@ export async function reschedule(settingsArg) {
   try {
     const settings = settingsArg || (await getSettings());
     await Notifications.cancelAllScheduledNotificationsAsync();
-    if (!settings.enabled) return;
     const perm = await Notifications.getPermissionsAsync();
     if (!perm.granted) return;
-
     const now = new Date();
-    const todayKey = dateKey(now);
-    const [today] = await loadDays([todayKey]);
-    const loggedMeals = new Set(today.entries.map(e => e.meal));
 
-    for (let d = 0; d < DAYS_AHEAD; d++) {
-      for (const r of REMINDERS) {
-        const it = settings.items[r.key];
-        if (!it || !it.on) continue;
-        const when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, it.hour, it.minute, 0);
-        if (when <= now) continue;
-        if (d === 0) {
-          if (r.key !== 'Evening' && loggedMeals.has(r.key)) continue;
-          if (r.key === 'Evening' && loggedMeals.size >= 3) continue;
+    if (settings.enabled) {
+      const [today] = await loadDays([dateKey(now)]);
+      const loggedMeals = new Set(today.entries.map(e => e.meal));
+      for (let d = 0; d < DAYS_AHEAD; d++) {
+        for (const r of REMINDERS) {
+          const it = settings.items[r.key];
+          if (!it || !it.on) continue;
+          const when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, it.hour, it.minute, 0);
+          if (when <= now) continue;
+          if (d === 0) {
+            if (r.key !== 'Evening' && loggedMeals.has(r.key)) continue;
+            if (r.key === 'Evening' && loggedMeals.size >= 3) continue;
+          }
+          await Notifications.scheduleNotificationAsync({
+            content: { title: r.title, body: r.body },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
+          });
         }
-        await Notifications.scheduleNotificationAsync({
-          content: { title: r.title, body: r.body },
-          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
-        });
+      }
+    }
+
+    // Period heads-up, 2 days before it's due.
+    const cycle = await loadCycle();
+    if (cycle.remind) {
+      const p = predict(cycle, now);
+      if (p.hasData && !p.late) {
+        const day = addDays(p.nextStart, -2);
+        const when = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0, 0);
+        if (when > now) {
+          await Notifications.scheduleNotificationAsync({
+            content: { title: 'Period due in a couple of days 🌸', body: 'Maybe pack some pads or a cup, and go gently on yourself this week.' },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
+          });
+        }
       }
     }
   } catch (e) {

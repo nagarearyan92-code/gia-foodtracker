@@ -7,6 +7,7 @@ import Diary from './src/screens/Diary';
 import Browse from './src/screens/Browse';
 import Trends from './src/screens/Trends';
 import Me from './src/screens/Me';
+import Cycle from './src/screens/Cycle';
 import { reschedule } from './src/reminders';
 import { onDiaryChange } from './src/store';
 
@@ -14,6 +15,7 @@ const TABS = [
   ['diary', 'Diary', '◷'],
   ['foods', 'Foods', '◍'],
   ['recipes', 'Recipes', '❦'],
+  ['cycle', 'Cycle', '✿'],
   ['trends', 'Trends', '▥'],
   ['me', 'Me', '♡'],
 ];
@@ -49,9 +51,10 @@ export default function App() {
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          {tab === 'diary' && <Diary onToast={showToast} onOpenRecipes={() => setTab('recipes')} />}
+          {tab === 'diary' && <Diary onToast={showToast} onOpenRecipes={() => setTab('recipes')} onOpenCycle={() => setTab('cycle')} />}
           {tab === 'foods' && <Browse mode="foods" onToast={showToast} />}
           {tab === 'recipes' && <Browse mode="recipes" onToast={showToast} />}
+          {tab === 'cycle' && <Cycle onToast={showToast} />}
           {tab === 'trends' && <Trends />}
           {tab === 'me' && <Me onToast={showToast} />}
         </View>

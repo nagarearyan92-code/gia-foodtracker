@@ -8,13 +8,13 @@ import { NUTRIENT_KEYS } from './theme';
 //   goals           -> { k, p, c, f, fi, water }
 //   weights         -> [{ date, kg }]
 
-export const DEFAULT_GOALS = { k: 2000, p: 100, c: 230, f: 70, fi: 30, water: 2000 };
+export const DEFAULT_GOALS = { k: 2000, p: 100, c: 230, f: 70, fi: 30, water: 2000, steps: 8000 };
 
 const listeners = new Set();
 const diaryHooks = new Set();
 // Called after diary entries change (used to re-plan reminders).
 export function onDiaryChange(fn) { diaryHooks.add(fn); return () => diaryHooks.delete(fn); }
-const diaryChanged = () => diaryHooks.forEach(fn => { try { fn(); } catch (e) {} });
+export const diaryChanged = () => diaryHooks.forEach(fn => { try { fn(); } catch (e) {} });
 function notify() { listeners.forEach(fn => fn()); }
 
 async function readJSON(key, fallback) {
@@ -70,6 +70,11 @@ function useStored(loader, deps) {
     return () => listeners.delete(reload);
   }, [reload]);
   return value;
+}
+
+// Generic stored value with live updates.
+export function useSetting(key, fallback) {
+  return useStored(() => readJSON(key, fallback), [key]);
 }
 
 // ---- Day ----

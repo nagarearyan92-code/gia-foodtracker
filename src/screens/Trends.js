@@ -4,6 +4,7 @@ import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native
 import { C } from '../theme';
 import { dateKey, loadDays, sumNutrients, useDay, useGoals, useWeights } from '../store';
 import { Card, Chip, H, Muted, r0, r1 } from '../ui';
+import { stepsForDays, stepsStatus } from '../steps';
 
 function lastNDays(n) {
   const out = [];
@@ -66,6 +67,7 @@ function WeightChart({ points, width }) {
 export default function Trends() {
   const [range, setRange] = useState(7);
   const [days, setDays] = useState(null);
+  const [steps, setSteps] = useState(null);
   const goals = useGoals();
   const weights = useWeights() || [];
   const today = useDay(dateKey(new Date())); // re-render when today changes
@@ -75,6 +77,7 @@ export default function Trends() {
   useEffect(() => {
     const ds = lastNDays(range);
     loadDays(ds.map(dateKey)).then(list => setDays(ds.map((d, i) => ({ d, t: sumNutrients(list[i].entries.map(e => e.n)), water: list[i].water || 0 }))));
+    stepsStatus().then(st => (st === 'connected' ? stepsForDays(ds).then(setSteps) : setSteps(null)));
   }, [range, today]);
 
   if (!days || !goals) return null;
@@ -106,6 +109,16 @@ export default function Trends() {
       <Card><H style={{ marginBottom: 8 }}>Calories</H><BarChart data={series('k')} target={goals.k} color={C.accent} width={chartW} /><Muted>Dashed line: your {goals.k} kcal target</Muted></Card>
       <Card><H style={{ marginBottom: 8 }}>Protein (g)</H><BarChart data={series('p')} target={goals.p} color={C.protein} width={chartW} /><Muted>Dashed line: your {goals.p} g target</Muted></Card>
       <Card><H style={{ marginBottom: 8 }}>Fibre (g)</H><BarChart data={series('fi')} target={goals.fi} color={C.fibre} width={chartW} /><Muted>Dashed line: your {goals.fi} g target</Muted></Card>
+
+      {steps && steps.some(v => v != null) ? (
+        <Card>
+          <H style={{ marginBottom: 8 }}>Steps</H>
+          <BarChart data={days.map((x, i) => ({ v: steps[i] || 0, label: label(x.d) }))} target={goals.steps || 8000} color={C.good} width={chartW} />
+          <Muted>
+            Average {r0(steps.filter(v => v > 0).reduce((a, v) => a + v, 0) / Math.max(1, steps.filter(v => v > 0).length)).toLocaleString('en-GB')} steps a day · dashed line: your {(goals.steps || 8000).toLocaleString('en-GB')} goal
+          </Muted>
+        </Card>
+      ) : null}
 
       <Card>
         <H style={{ marginBottom: 8 }}>Weight</H>
