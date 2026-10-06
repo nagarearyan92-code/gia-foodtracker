@@ -1,0 +1,73 @@
+name: Build Android APK
+
+# Builds an installable APK on every push to main (and on demand from the Actions tab),
+# then publishes it as a GitHub Release so it can be downloaded straight onto a phone.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set version from build number
+        run: |
+          node -e "
+          const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json'));
+          a.expo.android.versionCode=${{ github.run_number }};
+          a.expo.version='1.0.${{ github.run_number }}';
+          fs.writeFileSync('app.json',JSON.stringify(a,null,2));"
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          CI: 1
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk GiaFoodTracker.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GiaFoodTracker-apk
+          path: GiaFoodTracker.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Gia Food Tracker 1.0.${{ github.run_number }}
+          body: |
+            Download **GiaFoodTracker.apk** below on the Android phone and open it to install or update.
+            Updating keeps all logged food, foods and settings.
+          files: GiaFoodTracker.apk
+          make_latest: true
