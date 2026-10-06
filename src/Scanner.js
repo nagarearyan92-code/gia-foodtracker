@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { C } from './theme';
 import { findCustomByBarcode } from './store';
@@ -13,6 +13,15 @@ export default function Scanner({ onResult, onNotFound }) {
   const [error, setError] = useState('');
   const lastCode = useRef(null);
 
+  if (Platform.OS === 'web') {
+    return (
+      <View style={{ flex: 1, padding: 24, justifyContent: 'center', gap: 14 }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: C.ink }}>Barcode scanning works in the Android app</Text>
+        <Muted>This is a browser preview. You can still add a product from its label.</Muted>
+        <Btn title="Add a product by hand" onPress={() => onNotFound('')} />
+      </View>
+    );
+  }
   if (!permission) return <View style={{ flex: 1 }} />;
   if (!permission.granted) {
     return (

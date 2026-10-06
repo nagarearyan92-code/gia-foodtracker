@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS = {
   items: Object.fromEntries(REMINDERS.map(r => [r.key, { on: true, hour: r.hour, minute: r.minute }])),
 };
 
-Notifications.setNotificationHandler({
+if (Platform.OS !== 'web') Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
   }),
@@ -66,6 +66,7 @@ export async function ensurePermission() {
 
 // Cancel everything and schedule the next DAYS_AHEAD days of reminders.
 export async function reschedule(settingsArg) {
+  if (Platform.OS === 'web') return;
   try {
     const settings = settingsArg || (await getSettings());
     await Notifications.cancelAllScheduledNotificationsAsync();

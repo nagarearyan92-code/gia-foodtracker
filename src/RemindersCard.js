@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Pressable, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, Switch, Text, View } from 'react-native';
 import { C } from './theme';
 import { REMINDERS, ensurePermission, fmtTime, getSettings, saveSettings } from './reminders';
 import { readSetting, writeSetting } from './store';
@@ -22,6 +22,14 @@ export async function turnOnReminders() {
 export default function RemindersCard({ onToast }) {
   const [s, setS] = useState(null);
   useEffect(() => { getSettings().then(setS); }, []);
+  if (Platform.OS === 'web') {
+    return (
+      <Card style={{ gap: 6 }}>
+        <H>Reminders</H>
+        <Muted>Meal reminders work in the Android app. This browser preview can't send notifications.</Muted>
+      </Card>
+    );
+  }
   if (!s) return null;
 
   const update = async next => { setS(next); await saveSettings(next); };
@@ -73,6 +81,7 @@ export default function RemindersCard({ onToast }) {
 export function RemindersInvite({ onToast }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     Promise.all([getSettings(), readSetting('reminderInviteDismissed', false)])
       .then(([st, dismissed]) => setShow(!st.enabled && !dismissed));
   }, []);
