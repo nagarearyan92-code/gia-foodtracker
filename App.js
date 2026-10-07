@@ -11,6 +11,7 @@ import Cycle from './src/screens/Cycle';
 import { reschedule } from './src/reminders';
 import { onDiaryChange } from './src/store';
 import { onRestore } from './src/backup';
+import Buddy from './src/Buddy';
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -79,6 +80,7 @@ export default function App() {
             );
           })}
         </View>
+        <Buddy />
         {welcome ? (
           <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: welcomeFade }}>
             <Pressable onPress={hideWelcome} style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 6 }}>

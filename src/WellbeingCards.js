@@ -1,18 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { C } from './theme';
-import { useSetting } from './store';
-import { DEFAULT_SUPPS, saveSupps, toggleSupp } from './wellbeing';
+import { dateKey, useSetting, writeSetting } from './store';
+import { DEFAULT_SUPPS, SUPP_NUTRIENTS, normalizeSupps, saveSupps, setSuppTime, toggleSupp } from './wellbeing';
+import TimeRow from './TimeRow';
+import { averageHM, fmtHM, nowHM } from './times';
 import { KEY_PROBLEM, cleanKey, getKey, removeKey, setKey, testKey } from './ai';
-import { Btn, Card, H, Muted, s as ui } from './ui';
+import { Btn, Card, Chip, Field, H, Muted, Sheet, s as ui } from './ui';
 
-// Diary: tick off today's supplements.
+// Diary: tick off supplements, with the time taken. Tap a taken one to change the time.
 export function SuppCard({ dayKey }) {
-  const list = useSetting('supps', DEFAULT_SUPPS);
+  const raw = useSetting('supps', DEFAULT_SUPPS);
   const log = useSetting('suppLog', {});
-  if (!list || !log || !list.length) return null;
+  const times = useSetting('suppTimes', {});
+  const [edit, setEdit] = useState(null); // supplement whose time is being changed
+  const [history, setHistory] = useState(false);
+  if (!raw || !log || !times) return null;
+  const list = normalizeSupps(raw);
+  if (!list.length) return null;
   const taken = log[dayKey] || [];
+  const dayTimes = times[dayKey] || {};
   const done = list.every(x => taken.includes(x.id));
+  const isToday = dayKey === dateKey(new Date());
+  const counts = list.filter(x => x.nutrient && x.dose > 0);
   return (
     <Card style={{ gap: 10 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -23,24 +33,83 @@ export function SuppCard({ dayKey }) {
         {list.map(x => {
           const on = taken.includes(x.id);
           return (
-            <Pressable key={x.id} onPress={() => toggleSupp(dayKey, x.id)}
+            <Pressable key={x.id} onPress={() => (on ? setEdit(x) : toggleSupp(dayKey, x.id, isToday ? nowHM() : '09:00'))}
               style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
                 on && { backgroundColor: C.good, borderColor: C.good }]}>
               <Text style={{ color: on ? '#fff' : C.muted, fontWeight: '800' }}>{on ? '✓' : '○'}</Text>
-              <Text style={{ color: on ? '#fff' : C.ink, fontWeight: '700' }}>{x.name}</Text>
+              <Text style={{ color: on ? '#fff' : C.ink, fontWeight: '700' }}>{x.name}{on && dayTimes[x.id] ? ` · ${fmtHM(dayTimes[x.id])}` : ''}</Text>
             </Pressable>
           );
         })}
       </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Muted style={{ flex: 1 }}>{counts.length ? `${counts.map(x => `${x.name} ${x.dose} ${x.unit}`).join(', ')} counted in your vitamins below.` : 'Tap to tick off. Tap again to change the time.'}</Muted>
+        <Pressable onPress={() => setHistory(true)} hitSlop={8}><Text style={{ color: C.accent, fontWeight: '700' }}>History</Text></Pressable>
+      </View>
+
+      <Sheet visible={!!edit} title={edit ? edit.name : ''} onClose={() => setEdit(null)}>
+        {edit ? <SuppTimeEditor x={edit} dayKey={dayKey} time={dayTimes[edit.id] || '09:00'} onDone={() => setEdit(null)} /> : null}
+      </Sheet>
+      <Sheet visible={history} title="Supplement history" onClose={() => setHistory(false)}>
+        {history ? <SuppHistory list={list} log={log} times={times} /> : null}
+      </Sheet>
     </Card>
   );
 }
 
-// Me tab: edit the supplement list.
+function SuppTimeEditor({ x, dayKey, time, onDone }) {
+  const [t, setT] = useState(time);
+  return (
+    <View style={{ gap: 16 }}>
+      <TimeRow label="Taken at" value={t} onChange={setT} />
+      <Btn title="Save" onPress={async () => { await setSuppTime(dayKey, x.id, t); onDone(); }} />
+      <Btn kind="ghost" title="I didn't take it" onPress={async () => { await toggleSupp(dayKey, x.id); onDone(); }} />
+    </View>
+  );
+}
+
+// Last 14 days, one row per supplement.
+function SuppHistory({ list, log, times }) {
+  const days = [];
+  for (let i = 13; i >= 0; i--) { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i); days.push(d); }
+  return (
+    <View style={{ gap: 18 }}>
+      {list.map(x => {
+        const took = days.map(d => (log[dateKey(d)] || []).includes(x.id));
+        const n = took.filter(Boolean).length;
+        const missed = days.filter((d, i) => !took[i] && i < 13).map(d => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }));
+        const ts = days.map(d => (times[dateKey(d)] || {})[x.id]).filter(Boolean);
+        return (
+          <View key={x.id} style={{ gap: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: C.ink, fontWeight: '800', fontSize: 16 }}>{x.name}</Text>
+              <Text style={{ color: n >= 12 ? C.good : C.ink, fontWeight: '700' }}>{n} of 14 days</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {days.map((d, i) => (
+                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+                  <View style={{ width: '100%', aspectRatio: 1, maxWidth: 22, borderRadius: 6, backgroundColor: took[i] ? C.good : C.sunk }} />
+                  <Text style={{ fontSize: 9, color: C.muted }}>{d.toLocaleDateString('en-GB', { weekday: 'narrow' })}</Text>
+                </View>
+              ))}
+            </View>
+            {ts.length >= 3 ? <Muted>Usually taken around {fmtHM(averageHM(ts))}.</Muted> : null}
+            {missed.length && missed.length <= 5 ? <Muted>Missed: {missed.join(', ')}</Muted> : null}
+          </View>
+        );
+      })}
+      <Muted>Today is on the right.</Muted>
+    </View>
+  );
+}
+
+// Me tab: the supplement list, with doses that count toward vitamin totals.
 export function SuppSettings({ onToast }) {
-  const list = useSetting('supps', DEFAULT_SUPPS);
+  const raw = useSetting('supps', DEFAULT_SUPPS);
   const [name, setName] = useState('');
-  if (!list) return null;
+  const [edit, setEdit] = useState(null);
+  if (!raw) return null;
+  const list = normalizeSupps(raw);
   const add = async () => {
     const n = name.trim();
     if (!n) return;
@@ -48,28 +117,70 @@ export function SuppSettings({ onToast }) {
     setName('');
     onToast && onToast('Added ' + n);
   };
-  const remove = x => Alert.alert(`Remove ${x.name}?`, 'It will no longer appear on the Diary.', [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Remove', style: 'destructive', onPress: () => saveSupps(list.filter(y => y.id !== x.id)) },
-  ]);
   return (
     <Card style={{ gap: 10 }}>
       <H>Supplements</H>
       {list.map(x => (
-        <View key={x.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, borderTopWidth: 1, borderTopColor: C.line }}>
+        <Pressable key={x.id} onPress={() => setEdit(x)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderTopWidth: 1, borderTopColor: C.line }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: C.ink, fontWeight: '700' }}>{x.name}</Text>
-            {x.hint ? <Muted>{x.hint}</Muted> : null}
+            <Text style={{ color: C.ink, fontWeight: '700' }}>{x.name}{x.dose > 0 ? ` · ${x.dose} ${x.unit}` : ''}</Text>
+            <Muted>{x.nutrient && x.dose > 0 ? `Counts toward ${SUPP_NUTRIENTS.find(n => n.key === x.nutrient)?.label.toLowerCase()}` : x.nutrient ? 'Tap to add the dose from the pack' : x.hint || 'Tap to edit'}</Muted>
           </View>
-          <Pressable onPress={() => remove(x)} hitSlop={10}><Text style={{ color: C.warn, fontWeight: '700' }}>Remove</Text></Pressable>
-        </View>
+          <Text style={{ color: C.accent, fontWeight: '700' }}>Edit</Text>
+        </Pressable>
       ))}
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <TextInput value={name} onChangeText={setName} placeholder="Add one, e.g. Magnesium" placeholderTextColor="#C9A3AF" style={[ui.input, { flex: 1 }]} />
         <Btn title="Add" onPress={add} style={{ paddingHorizontal: 18 }} />
       </View>
       <Muted>The supplement reminder is in Reminders above.</Muted>
+      <Sheet visible={!!edit} title={edit ? edit.name : ''} onClose={() => setEdit(null)}>
+        {edit ? <SuppEditor x={edit} list={list} onDone={msg => { setEdit(null); msg && onToast && onToast(msg); }} /> : null}
+      </Sheet>
     </Card>
+  );
+}
+
+function SuppEditor({ x, list, onDone }) {
+  const [name, setName] = useState(x.name);
+  const [dose, setDose] = useState(x.dose > 0 ? String(x.dose) : '');
+  const [nutrient, setNutrient] = useState(x.nutrient || null);
+  const units = SUPP_NUTRIENTS.find(n => n.key === nutrient)?.units || ['mg', 'µg'];
+  const [unit, setUnit] = useState(x.unit && units.includes(x.unit) ? x.unit : units[0]);
+  const save = async () => {
+    const d = parseFloat(dose);
+    await saveSupps(list.map(y => (y.id === x.id ? { ...y, name: name.trim() || y.name, nutrient, dose: d > 0 ? d : null, unit: units.includes(unit) ? unit : units[0] } : y)));
+    onDone('Saved');
+  };
+  const remove = () => Alert.alert(`Remove ${x.name}?`, 'It will no longer appear on the Diary. Past days are kept.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Remove', style: 'destructive', onPress: async () => { await saveSupps(list.filter(y => y.id !== x.id)); onDone('Removed'); } },
+  ]);
+  return (
+    <View style={{ gap: 16 }}>
+      <Field label="Name" value={name} onChangeText={setName} />
+      <View style={{ gap: 8 }}>
+        <H>Counts toward</H>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          <Chip label="Nothing" active={!nutrient} onPress={() => setNutrient(null)} />
+          {SUPP_NUTRIENTS.map(n => <Chip key={n.key} label={n.label} active={nutrient === n.key} onPress={() => { setNutrient(n.key); if (!n.units.includes(unit)) setUnit(n.units[0]); }} />)}
+        </View>
+      </View>
+      {nutrient ? (
+        <View style={{ gap: 8 }}>
+          <H>Dose per day (from the pack)</H>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
+            <Field label="Amount" value={dose} onChangeText={setDose} numeric />
+            <View style={{ flexDirection: 'row', gap: 6, flex: 1.2 }}>
+              {units.map(u => <Chip key={u} label={u} active={unit === u} onPress={() => setUnit(u)} />)}
+            </View>
+          </View>
+          <Muted>{nutrient === 'iron' ? 'Use the amount of iron itself, e.g. "14 mg iron", not the total tablet weight (like 210 mg ferrous fumarate).' : nutrient === 'vd' ? '1,000 IU = 25 µg. Either unit is fine.' : 'Use the amount on the pack per daily dose.'}</Muted>
+        </View>
+      ) : null}
+      <Btn title="Save" onPress={save} />
+      <Btn kind="ghost" title="Remove supplement" onPress={remove} />
+    </View>
   );
 }
 
@@ -131,6 +242,21 @@ export function AiSettings({ onToast }) {
           <Btn title={checking ? 'Checking the key…' : 'Save key'} onPress={save} disabled={!val.trim() || checking} />
         </>
       )}
+      <BubbleSwitch />
     </Card>
+  );
+}
+
+function BubbleSwitch() {
+  const hidden = useSetting('bubbleHidden', false);
+  if (hidden === null) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10, gap: 10 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: C.ink, fontWeight: '600' }}>Show chat bubble 🌸</Text>
+        <Muted>A little bubble on every screen to chat with her any time. Drag it wherever you like.</Muted>
+      </View>
+      <Switch value={!hidden} onValueChange={v => writeSetting('bubbleHidden', !v)} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
+    </View>
   );
 }

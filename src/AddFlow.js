@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { C } from './theme';
 import { useCustomFoods, useRecent } from './store';
 import { BUILT_IN, RECIPE_FOODS, searchFoods } from './catalog';
 import FoodDetail from './FoodDetail';
 import ProductForm from './ProductForm';
 import Scanner from './Scanner';
+import { searchProducts } from './openfoodfacts';
 import { Btn, Chip, Muted, Sheet, r0, r1, s } from './ui';
 
 // One full-screen sheet that handles: search -> food detail -> add, scan, and create product.
@@ -18,9 +19,10 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
   const [tab, setTab] = useState('foods');
   const custom = useCustomFoods() || [];
   const recent = useRecent() || [];
+  const [online, setOnline] = useState({ q: '', state: 'idle', list: [] }); // idle | loading | done | error
 
   useEffect(() => {
-    if (visible) { setView(start); setFood(null); setFormInitial(start === 'create' ? {} : null); setQ(''); }
+    if (visible) { setView(start); setFood(null); setFormInitial(start === 'create' ? {} : null); setQ(''); setOnline({ q: '', state: 'idle', list: [] }); }
   }, [visible, start]);
 
   const list = useMemo(() => {
@@ -31,6 +33,46 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
   }, [tab, q, custom, recent]);
 
   const open = f => { setFood(f); setView('detail'); };
+
+  async function searchOnline() {
+    const term = q.trim();
+    setOnline({ q: term, state: 'loading', list: [] });
+    try {
+      const list = await searchProducts(term);
+      const mine = new Set(custom.map(f => f.barcode).filter(Boolean));
+      setOnline({ q: term, state: 'done', list: list.filter(f => !mine.has(f.barcode)) });
+    } catch (e) {
+      setOnline({ q: term, state: 'error', list: [], busy: e?.message === 'busy' });
+    }
+  }
+  const showOnline = tab === 'foods' && q.trim().length >= 2;
+  const onlineFresh = online.q === q.trim();
+  const OnlineFooter = !showOnline ? null : (
+    <View style={{ paddingTop: 14, gap: 6 }}>
+      {onlineFresh && online.state === 'done' ? (
+        <>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 4 }}>
+            From Open Food Facts · {online.list.length} found
+          </Text>
+          {online.list.map(f => <FoodRow key={f.id} f={f} onPress={() => open(f)} />)}
+          {!online.list.length ? <Muted>Nothing found online either. Try the brand plus product, e.g. "Tesco Greek yogurt", or scan the barcode.</Muted> : (
+            <Muted style={{ marginTop: 6 }}>Values are crowd-sourced, so check the pack if a number looks odd. Adding one saves it to your foods.</Muted>
+          )}
+        </>
+      ) : onlineFresh && online.state === 'loading' ? (
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 10 }}>
+          <ActivityIndicator color={C.accent} /><Muted>Searching Open Food Facts…</Muted>
+        </View>
+      ) : (
+        <>
+          {onlineFresh && online.state === 'error'
+            ? <Muted>{online.busy ? 'Open Food Facts is busy, try again in a minute.' : "Couldn't search online. Check you're connected."}</Muted>
+            : null}
+          <Btn kind="ghost" title={`🔎 Search online for “${q.trim()}”`} onPress={searchOnline} />
+        </>
+      )}
+    </View>
+  );
   const edit = f => { setFormInitial(f); setView('form'); };
   const done = msg => { onToast && onToast(msg); onClose(); };
 
@@ -88,6 +130,7 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
         </View>
         <TextInput
           value={q} onChangeText={setQ} placeholder="Search foods, brands, recipes…" placeholderTextColor="#C9A3AF"
+          returnKeyType="search" onSubmitEditing={() => { if (tab === 'foods' && q.trim().length >= 2 && !searchFoods([...custom, ...BUILT_IN], q).length) searchOnline(); }}
           style={[s.input, { fontSize: 16 }]}
         />
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
@@ -101,7 +144,8 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
         keyExtractor={f => f.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        ListEmptyComponent={<Muted style={{ textAlign: 'center', marginTop: 30 }}>{tab === 'mine' ? 'Products you add or scan will appear here.' : tab === 'recent' ? 'Foods you log will appear here.' : 'Nothing matches. Try scanning the barcode or adding a new product.'}</Muted>}
+        ListEmptyComponent={showOnline ? null : <Muted style={{ textAlign: 'center', marginTop: 30 }}>{tab === 'mine' ? 'Products you add or scan will appear here.' : tab === 'recent' ? 'Foods you log will appear here.' : 'Nothing matches. Try scanning the barcode or adding a new product.'}</Muted>}
+        ListFooterComponent={OnlineFooter}
         renderItem={({ item: f }) => <FoodRow f={f} onPress={() => open(f)} />}
       />
     </Sheet>

@@ -13,7 +13,7 @@ export const SYMPTOMS = [
   'Acne', 'Low mood', 'Anxious', 'Irritable', 'Happy', 'Energetic', 'Can\'t sleep',
 ];
 
-export const DEFAULT_CYCLE = { days: {}, cycleLen: 28, periodLen: 5, remind: true };
+export const DEFAULT_CYCLE = { days: {}, cycleLen: 28, periodLen: 5, remind: true, open: null };
 
 const DAY = 864e5;
 export const toDate = key => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d, 12); };
@@ -61,7 +61,8 @@ export function stats(cycle) {
 export function predict(cycle, today = new Date()) {
   const st = stats(cycle);
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
-  const last = st.periods[st.periods.length - 1];
+  const periods = withOpen(cycle, st.periods.map(p => ({ ...p })), t);
+  const last = periods[periods.length - 1];
   if (!last) return { ...st, hasData: false };
   const expected = addDays(last.start, st.cycleLen);
   const late = Math.max(0, daysBetween(expected, t));
@@ -82,9 +83,88 @@ export function predict(cycle, today = new Date()) {
   };
 }
 
+// ---- Logging periods as ranges (start → end), instead of tapping every day ----
+const MAX_PERIOD = 10;
+const noon = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+export const todayNoon = () => noon(new Date());
+
+// While a period is "still going", count it as running up to today.
+function withOpen(cycle, periods, today = todayNoon()) {
+  if (!cycle.open) return periods;
+  const s = toDate(cycle.open);
+  const age = daysBetween(s, today);
+  if (age < 0 || age >= MAX_PERIOD) return periods;
+  const p = periods.find(x => dateKey(x.start) === cycle.open);
+  if (p) { if (today > p.end) p.end = today; return periods; }
+  return [...periods, { start: s, end: today }].sort((a, b) => a.start - b.start);
+}
+
+export function periodAt(cycle, d) {
+  const t = noon(d);
+  return withOpen(cycle, findPeriods(cycle.days)).find(p => t >= p.start && t <= p.end) || null;
+}
+
+// Marks every day from start to end as a period day (keeps any symptoms/notes already there).
+export function fillPeriod(cycle, start, end, flow = 'medium') {
+  const days = { ...cycle.days };
+  for (let d = noon(start); d <= noon(end); d = addDays(d, 1)) {
+    const k = dateKey(d);
+    const rec = days[k] || {};
+    if (!rec.flow || rec.flow === 'spotting') days[k] = { ...rec, flow };
+  }
+  return { ...cycle, days };
+}
+
+// Removes period flow from a range of days (symptoms and notes stay).
+export function clearPeriodDays(cycle, start, end) {
+  const days = { ...cycle.days };
+  for (let d = noon(start); d <= noon(end); d = addDays(d, 1)) {
+    const k = dateKey(d);
+    if (!days[k]?.flow) continue;
+    const { flow, ...rest } = days[k]; // eslint-disable-line no-unused-vars
+    if ((rest.symptoms && rest.symptoms.length) || rest.note) days[k] = rest; else delete days[k];
+  }
+  return { ...cycle, days };
+}
+
+// Her period started on `start` and is still going: mark the start and remember it's open.
+export function startPeriod(cycle, start) {
+  return { ...fillPeriod(cycle, start, start), open: dateKey(noon(start)) };
+}
+// Still going today: fill in the days since it started.
+export function periodStillOn(cycle, today = todayNoon()) {
+  if (!cycle.open) return cycle;
+  return { ...fillPeriod(cycle, toDate(cycle.open), today), open: cycle.open };
+}
+// It ended on `end`: fill start..end, clear anything after, close it.
+export function endPeriod(cycle, start, end, today = todayNoon()) {
+  let c = fillPeriod(cycle, start, end);
+  const after = addDays(noon(end), 1);
+  const limit = addDays(noon(start), MAX_PERIOD + 2);
+  if (after <= limit) c = clearPeriodDays(c, after, limit < today ? limit : today);
+  return { ...c, open: null };
+}
+// The open period, if any. Periods left open too long are closed using her usual length.
+export function openPeriodInfo(cycle, today = todayNoon()) {
+  if (!cycle.open) return null;
+  const start = toDate(cycle.open);
+  const day = daysBetween(start, today) + 1;
+  if (day < 1) return null;
+  if (day > MAX_PERIOD) return { stale: true, start, closed: endPeriod(cycle, start, addDays(start, (stats(cycle).periodLen || 5) - 1), today) };
+  return { start, day };
+}
+export function removePeriod(cycle, p) {
+  const c = clearPeriodDays(cycle, p.start, p.end);
+  return cycle.open && toDate(cycle.open) >= p.start && toDate(cycle.open) <= p.end ? { ...c, open: null } : c;
+}
+
 // Per-day calendar marking for a month view: 'period' | 'spotting' | 'predicted' | 'fertile' | 'ovulation' | null
 export function dayKind(cycle, pred, d) {
   const rec = cycle.days[dateKey(d)];
+  if (cycle.open && !rec?.flow) {
+    const s = toDate(cycle.open), t = todayNoon();
+    if (d >= s && d <= t && daysBetween(s, t) < MAX_PERIOD) return 'period';
+  }
   if (rec?.flow && rec.flow !== 'spotting') return 'period';
   if (rec?.flow === 'spotting') return 'spotting';
   if (!pred.hasData) return null;

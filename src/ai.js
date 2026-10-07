@@ -81,6 +81,42 @@ Each check-in tells you how she feels plus a snapshot of her day. Reply like a k
 - If she mentions hopelessness, self-harm, not wanting to be here, or being unsafe, respond with real care, tell her she matters and she doesn't have to handle it alone, and encourage her to reach out now: Samaritans on 116 123 (free, 24/7, UK), texting SHOUT to 85258, or 999 / A&E if she's in immediate danger. Suggest telling Aryan or someone she trusts.
 - For follow-up messages, continue the conversation naturally and keep replies brief.`;
 
+// Open chat from the floating bubble: she can ask anything, any time.
+const BUDDY_SYSTEM = `${SYSTEM.split('\n\n')[0]}
+
+This is an open chat (not her daily check-in): she can ask you anything, like what to eat, nutrition questions, recipe ideas, how to cook something, her cycle, sleep, how she's feeling, or something completely random. Reply like a kind, knowledgeable friend:
+- Answer what she actually asked, warmly and directly. Usually keep it under 120 words, plain text; if she asks for a recipe or steps, short numbered lines are fine.
+- Food ideas must be vegetarian with no eggs and no soy/tofu. You may suggest her saved recipes by name.
+- A snapshot of her day is included with her first message for context; use it when it helps, don't recite it.
+- Never shame or pressure her about food, weight or calories, and never suggest restricting or skipping meals.
+- Don't diagnose. If something sounds medical or keeps happening, gently suggest her GP or a pharmacist.
+- If she mentions hopelessness, self-harm, not wanting to be here, or being unsafe, respond with real care, tell her she matters and she doesn't have to handle it alone, and encourage her to reach out now: Samaritans on 116 123 (free, 24/7, UK), texting SHOUT to 85258, or 999 / A&E if she's in immediate danger. Suggest telling Aryan or someone she trusts.`;
+
+// thread: [{ role, text }] newest last. Returns { text, source: 'ai' } or throws { code }.
+export async function askBuddy(thread) {
+  const apiKey = await getKey();
+  if (!apiKey) throw { code: 'no-key' };
+  const ctx = await buildContext(dateKey(new Date()));
+  const msgs = [];
+  thread.forEach((m, i) => {
+    const t = (m.text || '').trim();
+    if (!t) return;
+    const last = msgs[msgs.length - 1];
+    if (last && last.role === m.role) last.content += '\n\n' + t;
+    else msgs.push({ role: m.role, content: t });
+  });
+  while (msgs.length && msgs[0].role !== 'user') msgs.shift();
+  while (msgs.length > 20) msgs.splice(0, 2);
+  if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw { code: 'error', message: 'Nothing to reply to' };
+  msgs[0] = { role: 'user', content: `[Snapshot of my day, for context]\n${ctx}\n\n${msgs[0].content}` };
+  const body = { model: MODEL, max_tokens: 2000, output_config: { effort: 'low' }, system: BUDDY_SYSTEM, messages: msgs };
+  let data = await post(cleanKey(apiKey), body);
+  let text = replyText(data);
+  if (!text && data.stop_reason !== 'refusal') { data = await post(cleanKey(apiKey), { ...body, max_tokens: 4000 }); text = replyText(data); }
+  if (!text) throw { code: 'empty' };
+  return { text, source: 'ai' };
+}
+
 const fmtTime = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 // A short snapshot of her day for context.

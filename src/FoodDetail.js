@@ -3,12 +3,15 @@ import { Text, View } from 'react-native';
 import { C, MEALS, MICROS } from './theme';
 import { addEntry, pushRecent, saveCustomFood, scale, uid } from './store';
 import { Btn, Card, Chip, Field, MacroStrip, Muted, r1, s } from './ui';
+import TimeRow from './TimeRow';
+import { defaultTime } from './times';
 
 // Shows one food (built-in, custom, scanned or a recipe) and lets her add an amount to a meal.
 export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEdit }) {
   const isRecipe = food.kind === 'recipe';
   const [meal, setMeal] = useState(initialMeal || 'Snacks');
   const [amount, setAmount] = useState(String(isRecipe ? 1 : food.serv || 100));
+  const [time, setTime] = useState(() => defaultTime(day, initialMeal || 'Snacks'));
   useEffect(() => { setAmount(String(isRecipe ? 1 : food.serv || 100)); }, [food.id]); // eslint-disable-line
 
   const qty = parseFloat(amount) || 0;
@@ -28,7 +31,7 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
     const amountLabel = isRecipe ? `${qty} serving${qty === 1 ? '' : 's'}` : `${qty} g`;
     await addEntry(day, {
       name: food.brand ? `${food.brand} ${food.name}` : food.name,
-      meal, amountLabel, n,
+      meal, amountLabel, n, time,
     });
     if (food.unsaved) await saveCustomFood({ ...food, id: food.id || uid(), unsaved: undefined, custom: true });
     await pushRecent(food.unsaved ? { ...food, unsaved: undefined, custom: true } : food);
@@ -91,6 +94,8 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
               {MEALS.map(m => <Chip key={m} label={m} active={meal === m} onPress={() => setMeal(m)} />)}
             </View>
           </View>
+
+          <TimeRow label="Time eaten" value={time} onChange={setTime} />
 
           <Btn title={`Add to ${meal}`} onPress={add} disabled={qty <= 0} />
           {food.unsaved ? <Muted>Adding it also saves this product to your foods, so it's instant next time.</Muted> : null}

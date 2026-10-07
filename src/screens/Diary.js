@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { C, MACROS, MEALS, MICROS } from '../theme';
-import { addWater, dateKey, removeEntry, sumNutrients, useDay, useGoals } from '../store';
+import { addWater, dateKey, removeEntry, sumNutrients, updateEntry, useDay, useGoals, useSetting } from '../store';
+import { DEFAULT_SUPPS, suppAmounts } from '../wellbeing';
 import AddFlow from '../AddFlow';
 import { RemindersInvite } from '../RemindersCard';
 import StepsCard from '../StepsCard';
@@ -9,7 +10,9 @@ import { PeriodBanner } from './Cycle';
 import { CheckInCard } from '../CheckIn';
 import { SuppCard } from '../WellbeingCards';
 import { UpdateBanner } from '../AppCards';
-import { Bar, Btn, Card, H, Muted, Ring, r0, r1 } from '../ui';
+import { Bar, Btn, Card, H, Muted, Ring, Sheet, r0, r1 } from '../ui';
+import TimeRow from '../TimeRow';
+import { fmtHM, toMin } from '../times';
 
 function dayTitle(d) {
   const today = new Date(); today.setHours(12, 0, 0, 0);
@@ -26,19 +29,25 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
   const day = useDay(key) || { entries: [], water: 0 };
   const goals = useGoals();
   const [flow, setFlow] = useState(null); // { meal, start }
+  const [entry, setEntry] = useState(null); // diary item being edited
 
   const total = useMemo(() => sumNutrients(day.entries.map(e => e.n)), [day]);
+  const supps = useSetting('supps', DEFAULT_SUPPS);
+  const suppLog = useSetting('suppLog', {});
+  const fromSupps = useMemo(() => suppAmounts(supps, (suppLog || {})[key] || []), [supps, suppLog, key]);
   if (!goals) return null;
+  const micro = k => (total[k] != null || fromSupps[k] != null ? (total[k] || 0) + (fromSupps[k] || 0) : null);
   const left = goals.k - (total.k || 0);
   const shift = n => setDate(d => new Date(d.getTime() + n * 864e5));
 
   const confirmDelete = e =>
     Alert.alert('Remove from diary?', `${e.name} (${e.amountLabel})`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeEntry(key, e.id) },
+      { text: 'Remove', style: 'destructive', onPress: () => { removeEntry(key, e.id); setEntry(null); } },
     ]);
 
-  const microsWithData = MICROS.filter(m => total[m.key] != null);
+  const microsWithData = MICROS.filter(m => micro(m.key) != null);
+  const suppNote = Object.keys(fromSupps).length ? ' Includes your supplements.' : '';
 
   return (
     <>
@@ -76,7 +85,8 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
         </Pressable>
 
         {MEALS.map(meal => {
-          const items = day.entries.filter(e => e.meal === meal);
+          const items = day.entries.filter(e => e.meal === meal)
+            .sort((a, b) => (a.time ? toMin(a.time) : 9999) - (b.time ? toMin(b.time) : 9999));
           const mt = sumNutrients(items.map(e => e.n));
           return (
             <Card key={meal} style={{ paddingBottom: 8 }}>
@@ -85,11 +95,11 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
                 <Muted>{items.length ? `${r0(mt.k)} kcal · ${r0(mt.p)} g protein` : ''}</Muted>
               </View>
               {items.map(e => (
-                <Pressable key={e.id} onLongPress={() => confirmDelete(e)} onPress={() => confirmDelete(e)}
+                <Pressable key={e.id} onLongPress={() => confirmDelete(e)} onPress={() => setEntry(e)}
                   style={{ flexDirection: 'row', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.line, gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.ink, fontWeight: '600' }} numberOfLines={2}>{e.name}</Text>
-                    <Muted>{e.amountLabel}</Muted>
+                    <Muted>{e.time ? `${fmtHM(e.time)} · ` : ''}{e.amountLabel}</Muted>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ color: C.ink, fontVariant: ['tabular-nums'] }}>{r0(e.n.k)} kcal</Text>
@@ -131,17 +141,44 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
         <Card>
           <H style={{ marginBottom: 4 }}>Vitamins & minerals</H>
           <Muted style={{ marginBottom: 10 }}>
-            Counted from scanned and label-entered foods that list them. Key ones to watch on a vegetarian diet: iron, B12, calcium, zinc.
+            Counted from scanned and label-entered foods that list them.{suppNote} Key ones to watch on a vegetarian diet: iron, B12, calcium, zinc.
           </Muted>
           {microsWithData.length === 0
             ? <Muted>Nothing recorded yet today.</Muted>
-            : microsWithData.map(m => <Bar key={m.key} label={m.label} value={total[m.key]} target={m.target} unit={m.unit} color={C.fibre} limit={m.limit} />)}
+            : microsWithData.map(m => <Bar key={m.key} label={m.label} value={micro(m.key)} target={m.target} unit={m.unit} color={C.fibre} limit={m.limit} />)}
         </Card>
-        <Muted style={{ textAlign: 'center' }}>Tap a diary item to remove it.</Muted>
+        <Muted style={{ textAlign: 'center' }}>Tap a diary item to change its time or remove it.</Muted>
       </ScrollView>
+
+      <Sheet visible={!!entry} title="Diary item" onClose={() => setEntry(null)}>
+        {entry && <EntryEditor e={entry} onSave={async patch => { await updateEntry(key, entry.id, patch); setEntry(null); onToast && onToast('Updated'); }} onDelete={() => confirmDelete(entry)} />}
+      </Sheet>
 
       <AddFlow visible={!!flow} onClose={() => setFlow(null)} day={key} meal={flow?.meal || 'Snacks'} start={flow?.start} onToast={onToast} />
     </>
+  );
+}
+
+function EntryEditor({ e, onSave, onDelete }) {
+  const [time, setTime] = useState(e.time || (e.meal === 'Breakfast' ? '08:30' : e.meal === 'Lunch' ? '13:00' : e.meal === 'Dinner' ? '19:30' : '16:00'));
+  const [meal, setMeal] = useState(e.meal);
+  return (
+    <View style={{ gap: 16 }}>
+      <View>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink }}>{e.name}</Text>
+        <Muted>{e.amountLabel} · {r0(e.n.k)} kcal · {r1(e.n.p)} g protein</Muted>
+      </View>
+      <TimeRow label="Time eaten" value={time} onChange={setTime} />
+      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+        {MEALS.map(m => (
+          <Pressable key={m} onPress={() => setMeal(m)} style={{ paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: meal === m ? C.accent : C.line, backgroundColor: meal === m ? C.accentSoft : C.surface }}>
+            <Text style={{ color: meal === m ? C.accent : C.ink, fontWeight: '600' }}>{m}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Btn title="Save" onPress={() => onSave({ time, meal })} />
+      <Btn kind="ghost" title="Remove from diary" onPress={onDelete} />
+    </View>
   );
 }
 

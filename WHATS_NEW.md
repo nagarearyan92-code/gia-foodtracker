@@ -1,1 +1,1 @@
-Miss Curious Bae is fixed! She no longer leaves a blank bubble, and any blank replies from before are cleared so she answers properly.
+A big little update 💗 Your period tracker now asks before marking a day, lets you add past periods, and checks in while it's on. Search online for any product by name, see what time you ate each food, log vitamins with the time and dose, and tap the 🌸 bubble on any screen to chat with Miss Curious Bae.

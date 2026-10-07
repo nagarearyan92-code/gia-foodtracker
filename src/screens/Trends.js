@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
-import { C } from '../theme';
+import { C, MEALS } from '../theme';
+import { averageHM, fmtHM, toMin } from '../times';
 import { dateKey, loadDays, sumNutrients, useDay, useGoals, useWeights } from '../store';
 import { Card, Chip, H, Muted, r0, r1 } from '../ui';
 import { stepsForDays, stepsStatus } from '../steps';
@@ -81,7 +82,7 @@ export default function Trends() {
 
   useEffect(() => {
     const ds = lastNDays(range);
-    loadDays(ds.map(dateKey)).then(list => setDays(ds.map((d, i) => ({ d, t: sumNutrients(list[i].entries.map(e => e.n)), water: list[i].water || 0 }))));
+    loadDays(ds.map(dateKey)).then(list => setDays(ds.map((d, i) => ({ d, t: sumNutrients(list[i].entries.map(e => e.n)), water: list[i].water || 0, entries: list[i].entries }))));
     Promise.all([loadCheckins(), loadCycle()]).then(([ci, cyc]) => setWell({ ci, cyc }));
     stepsStatus().then(st => (st === 'connected' ? stepsForDays(ds).then(setSteps) : setSteps(null)));
   }, [range, today]);
@@ -115,6 +116,7 @@ export default function Trends() {
       <Card><H style={{ marginBottom: 8 }}>Calories</H><BarChart data={series('k')} target={goals.k} color={C.accent} width={chartW} /><Muted>Dashed line: your {goals.k} kcal target</Muted></Card>
       <Card><H style={{ marginBottom: 8 }}>Protein (g)</H><BarChart data={series('p')} target={goals.p} color={C.protein} width={chartW} /><Muted>Dashed line: your {goals.p} g target</Muted></Card>
       <Card><H style={{ marginBottom: 8 }}>Fibre (g)</H><BarChart data={series('fi')} target={goals.fi} color={C.fibre} width={chartW} /><Muted>Dashed line: your {goals.fi} g target</Muted></Card>
+      <EatingTimes days={days} range={range} />
 
       {well ? <MoodSleep days={days} well={well} goals={goals} steps={steps} label={label} chartW={chartW} /> : null}
 
@@ -137,6 +139,38 @@ export default function Trends() {
 }
 
 const MOOD_COL = ['#B4362A', '#E77A9C', '#C9A3AF', '#7CC48D', '#2E7D4F'];
+
+// When she usually eats each meal, and her usual eating window, from items with a time.
+function EatingTimes({ days, range }) {
+  const timed = days.map(x => (x.entries || []).filter(e => e.time));
+  const withTimes = timed.filter(l => l.length).length;
+  if (withTimes < 3) {
+    return (
+      <Card style={{ gap: 4 }}>
+        <H>Usual eating times</H>
+        <Muted>Shows up after a few days of logging. Each food now records the time you ate it.</Muted>
+      </Card>
+    );
+  }
+  const meals = MEALS.map(m => ({ m, t: averageHM(timed.map(l => l.filter(e => e.meal === m).map(e => e.time).sort()[0])) })).filter(x => x.t);
+  const first = averageHM(timed.filter(l => l.length).map(l => l.map(e => e.time).sort()[0]));
+  const last = averageHM(timed.filter(l => l.length).map(l => l.map(e => e.time).sort().slice(-1)[0]));
+  const windowH = first && last ? Math.round(((toMin(last) - toMin(first)) / 60) * 10) / 10 : null;
+  return (
+    <Card style={{ gap: 8 }}>
+      <H>Usual eating times</H>
+      {meals.map(({ m, t }) => (
+        <View key={m} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={{ color: C.ink, fontWeight: '600' }}>{m}</Text>
+          <Text style={{ color: C.ink, fontVariant: ['tabular-nums'] }}>around {fmtHM(t)}</Text>
+        </View>
+      ))}
+      {windowH != null && windowH > 0 ? (
+        <Muted>On average you eat between {fmtHM(first)} and {fmtHM(last)}, about {windowH} hours (last {range} days, {withTimes} days with times).</Muted>
+      ) : null}
+    </Card>
+  );
+}
 
 function MoodSleep({ days, well, goals, steps, label, chartW }) {
   const { ci, cyc } = well;

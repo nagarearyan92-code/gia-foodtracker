@@ -93,6 +93,12 @@ export async function removeEntry(key, id) {
   await writeJSON('day:' + key, day);
   diaryChanged();
 }
+export async function updateEntry(key, id, patch) {
+  const day = await readJSON('day:' + key, { entries: [], water: 0 });
+  day.entries = day.entries.map(e => (e.id === id ? { ...e, ...patch } : e));
+  await writeJSON('day:' + key, day);
+  diaryChanged();
+}
 export async function addWater(key, ml) {
   const day = await readJSON('day:' + key, { entries: [], water: 0 });
   day.water = Math.max(0, (day.water || 0) + ml);
