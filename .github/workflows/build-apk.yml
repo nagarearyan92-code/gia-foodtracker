@@ -56,6 +56,10 @@ jobs:
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk GiaMia.apk
 
+      - name: Release notes
+        run: |
+          { cat WHATS_NEW.md; printf '\n---\n\nDownload **GiaMia.apk** below on the Android phone and open it to install or update.\nUpdating keeps all logged food, foods and settings.\n'; } > release-notes.md
+
       - uses: actions/upload-artifact@v4
         with:
           name: GiaMia-apk
@@ -66,8 +70,6 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Gia Mia 1.0.${{ github.run_number }}
-          body: |
-            Download **GiaMia.apk** below on the Android phone and open it to install or update.
-            Updating keeps all logged food, foods and settings.
+          body_path: release-notes.md
           files: GiaMia.apk
           make_latest: true

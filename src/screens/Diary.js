@@ -8,6 +8,7 @@ import StepsCard from '../StepsCard';
 import { PeriodBanner } from './Cycle';
 import { CheckInCard } from '../CheckIn';
 import { SuppCard } from '../WellbeingCards';
+import { UpdateBanner } from '../AppCards';
 import { Bar, Btn, Card, H, Muted, Ring, r0, r1 } from '../ui';
 
 function dayTitle(d) {
@@ -59,6 +60,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           </View>
         </Card>
 
+        <UpdateBanner onToast={onToast} />
         <StepsCard date={date} />
         <CheckInCard dayKey={key} isToday={dayTitle(date) === 'Today'} />
         <PeriodBanner onOpen={onOpenCycle} />

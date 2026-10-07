@@ -10,6 +10,7 @@ import Me from './src/screens/Me';
 import Cycle from './src/screens/Cycle';
 import { reschedule } from './src/reminders';
 import { onDiaryChange } from './src/store';
+import { onRestore } from './src/backup';
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -26,6 +27,8 @@ export default function App() {
   const fade = useRef(new Animated.Value(0)).current;
   const timer = useRef(null);
   const [welcome, setWelcome] = useState(true);
+  const [epoch, setEpoch] = useState(0); // bumped after a restore so every screen reloads
+  useEffect(() => onRestore(() => { setEpoch(e => e + 1); setTab('diary'); }), []);
   const welcomeFade = useRef(new Animated.Value(1)).current;
   const hideWelcome = () => Animated.timing(welcomeFade, { toValue: 0, duration: 450, useNativeDriver: true }).start(() => setWelcome(false));
   useEffect(() => { const t = setTimeout(hideWelcome, 3000); return () => clearTimeout(t); }, []); // eslint-disable-line
@@ -54,7 +57,7 @@ export default function App() {
             Hello <Text style={{ color: C.accent }}>Gia</Text>
           </Text>
         </View>
-        <View style={{ flex: 1 }}>
+        <View key={epoch} style={{ flex: 1 }}>
           {tab === 'diary' && <Diary onToast={showToast} onOpenRecipes={() => setTab('recipes')} onOpenCycle={() => setTab('cycle')} />}
           {tab === 'foods' && <Browse mode="foods" onToast={showToast} />}
           {tab === 'recipes' && <Browse mode="recipes" onToast={showToast} />}

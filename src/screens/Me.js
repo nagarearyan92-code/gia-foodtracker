@@ -6,6 +6,7 @@ import { Btn, Card, Field, H, Muted, r1 } from '../ui';
 import RemindersCard from '../RemindersCard';
 import TdeeCard, { autoUpdateTargets } from '../TdeeCard';
 import { AiSettings, SuppSettings } from '../WellbeingCards';
+import { BackupCard, UpdatesCard } from '../AppCards';
 
 export default function Me({ onToast }) {
   const goals = useGoals();
@@ -78,6 +79,10 @@ export default function Me({ onToast }) {
         </View>
         <Btn title="Save targets" onPress={save} />
       </Card>
+
+      <BackupCard onToast={onToast} />
+
+      <UpdatesCard onToast={onToast} />
 
       <Text style={{ textAlign: 'center', color: C.accent, fontWeight: '700', marginTop: 6 }}>Gia Mia, made with love, for hers truly, by Aryan 💗</Text>
       <Muted style={{ textAlign: 'center' }}>
