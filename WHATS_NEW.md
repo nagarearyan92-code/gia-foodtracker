@@ -1,1 +1,1 @@
-A big little update 💗 Your period tracker now asks before marking a day, lets you add past periods, and checks in while it's on. Search online for any product by name, see what time you ate each food, log vitamins with the time and dose, and tap the 🌸 bubble on any screen to chat with Miss Curious Bae.
+New: a grocery list 🛒 Find it at the top of the Foods tab. Add items by typing, or tap "Add ingredients to grocery list" on any recipe. Everything is sorted by aisle, and you can tick things off as you shop or share the list.

@@ -5,6 +5,7 @@ import { addEntry, pushRecent, saveCustomFood, scale, uid } from './store';
 import { Btn, Card, Chip, Field, MacroStrip, Muted, r1, s } from './ui';
 import TimeRow from './TimeRow';
 import { defaultTime } from './times';
+import { addGroceryItems, foodLabel, recipeItems } from './grocery';
 
 // Shows one food (built-in, custom, scanned or a recipe) and lets her add an amount to a meal.
 export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEdit }) {
@@ -25,6 +26,15 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
   }, [food, qty, isRecipe]);
 
   const incomplete = !isRecipe && food.n.k == null;
+  const [onList, setOnList] = useState('');
+  async function toGrocery() {
+    const items = isRecipe ? recipeItems(food) : [{ text: foodLabel(food), group: food.custom ? undefined : food.group }];
+    const n = await addGroceryItems(items);
+    setOnList(isRecipe ? (n ? `✓ ${n} ingredient${n === 1 ? '' : 's'} added to your grocery list` : '✓ Already on your grocery list') : '✓ On your grocery list');
+  }
+  const GroceryBtn = onList
+    ? <Text style={{ color: C.good, fontWeight: '700', textAlign: 'center' }}>{onList}</Text>
+    : <Btn kind="ghost" title={isRecipe ? '🛒 Add ingredients to grocery list' : '🛒 Add to grocery list'} onPress={toGrocery} />;
   const micros = MICROS.filter(m => n[m.key] != null);
 
   async function add() {
@@ -99,6 +109,7 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
 
           <Btn title={`Add to ${meal}`} onPress={add} disabled={qty <= 0} />
           {food.unsaved ? <Muted>Adding it also saves this product to your foods, so it's instant next time.</Muted> : null}
+          {GroceryBtn}
           {!isRecipe && !food.builtIn && onEdit ? <Btn kind="ghost" title="Edit nutrition values" onPress={() => onEdit(food)} /> : null}
         </>
       )}

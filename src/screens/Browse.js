@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, TextInput, View } from 'react-native';
-import { useCustomFoods } from '../store';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { useCustomFoods, useSetting } from '../store';
 import { BUILT_IN, GROUPS, RECIPE_FOODS, proteinDensity, searchFoods } from '../catalog';
 import { dateKey } from '../store';
 import { FoodRow } from '../AddFlow';
 import FoodDetail from '../FoodDetail';
 import ProductForm from '../ProductForm';
 import { Chip, Muted, Sheet, s } from '../ui';
+import GroceryList from '../GroceryList';
+import { C } from '../theme';
 
 const SORTS = [['pd', 'Most protein per kcal'], ['p', 'Most protein'], ['fi', 'Most fibre'], ['az', 'A to Z']];
 
@@ -19,6 +21,9 @@ export default function Browse({ mode, onToast }) {
   const [open, setOpen] = useState(null);
   const [editing, setEditing] = useState(null);
   const isRecipes = mode === 'recipes';
+  const [section, setSection] = useState('foods'); // foods | grocery (Foods tab only)
+  const grocery = useSetting('grocery', []) || [];
+  const toBuy = grocery.filter(x => !x.done).length;
 
   const list = useMemo(() => {
     if (isRecipes) {
@@ -40,8 +45,29 @@ export default function Browse({ mode, onToast }) {
 
   const groups = isRecipes ? ['All', 'High protein', 'High fibre', 'Vegan'] : ['All', 'My foods', ...GROUPS];
 
+  const Switcher = isRecipes ? null : (
+    <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 12, backgroundColor: C.sunk, borderRadius: 12, padding: 3 }}>
+      {[['foods', '🍽  Foods'], ['grocery', `🛒  Grocery list${toBuy ? ` (${toBuy})` : ''}`]].map(([k, l]) => (
+        <Pressable key={k} onPress={() => setSection(k)} style={{ flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: section === k ? C.surface : 'transparent' }}>
+          <Text style={{ fontWeight: '700', color: section === k ? C.accent : C.muted }}>{l}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  if (!isRecipes && section === 'grocery') {
+    return (
+      <View style={{ flex: 1 }}>
+        {Switcher}
+        <View style={{ height: 12 }} />
+        <GroceryList onToast={onToast} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
+      {Switcher}
       <View style={{ padding: 16, gap: 10 }}>
         <TextInput value={q} onChangeText={setQ} placeholder={isRecipes ? 'Search recipes…' : 'Search foods and brands…'}
           placeholderTextColor="#C9A3AF" style={[s.input, { fontSize: 16 }]} />
