@@ -151,6 +151,14 @@ function Chat({ dayKey, c, setC, onEdit }) {
 
   useEffect(() => { getKey().then(k => setHasKey(!!k)); }, []);
 
+  // Older versions could save an empty reply (a blank bubble). Drop those so a proper reply is fetched.
+  useEffect(() => {
+    if (!c.thread.some(m => m.role === 'assistant' && !(m.text || '').trim())) return;
+    const next = { ...c, thread: c.thread.filter(m => m.role !== 'assistant' || (m.text || '').trim()) };
+    setC(next);
+    saveCheckin(dayKey, next);
+  }, []); // eslint-disable-line
+
   const lastMsg = c.thread[c.thread.length - 1];
   const canRetry = !busy && hasKey && lastMsg?.role === 'assistant' && lastMsg.source === 'local';
   async function retry() {

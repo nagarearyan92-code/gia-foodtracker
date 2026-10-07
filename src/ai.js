@@ -137,17 +137,36 @@ export function describeCheckin(c) {
   return parts.join('. ') + '.';
 }
 
+const replyText = data => (data?.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+
 // thread: [{ role: 'user'|'assistant', text }]. Returns { text, source: 'ai' } or throws { code, message }.
 export async function askClaude(key, checkin, thread) {
   const apiKey = await getKey();
   if (!apiKey) throw { code: 'no-key' };
   const ctx = await buildContext(key);
   const first = `Here's my check-in.\n${describeCheckin(checkin)}\n${checkin.feeling ? `In my own words: ${checkin.feeling}` : "I didn't write anything else."}\n\n[Snapshot of my day, for context]\n${ctx}`;
-  const msgs = [{ role: 'user', content: first }, ...thread.slice(1).map(m => ({ role: m.role, content: m.text }))].slice(-14);
-  if (msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: first });
+  // Skip empty messages and merge back-to-back messages from the same side (the API needs them to alternate).
+  const msgs = [];
+  [{ role: 'user', text: first }, ...thread.slice(1)].forEach(m => {
+    const t = (m.text || '').trim();
+    if (!t) return;
+    const last = msgs[msgs.length - 1];
+    if (last && last.role === m.role) last.content += '\n\n' + t;
+    else msgs.push({ role: m.role, content: t });
+  });
+  while (msgs.length > 14) msgs.splice(1, 2); // keep the check-in itself, drop the oldest back-and-forth
+  if (msgs[msgs.length - 1].role !== 'user') throw { code: 'error', message: 'Nothing new to reply to' };
 
-  const data = await post(cleanKey(apiKey), { model: MODEL, max_tokens: 500, system: SYSTEM, messages: msgs });
-  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  // Sonnet 5.5 thinks before answering by default, and thinking counts toward max_tokens. A short,
+  // warm reply doesn't need deep reasoning, so keep effort low and leave plenty of room for the answer.
+  const body = { model: MODEL, max_tokens: 2000, output_config: { effort: 'low' }, system: SYSTEM, messages: msgs };
+  let data = await post(cleanKey(apiKey), body);
+  let text = replyText(data);
+  if (!text && data.stop_reason !== 'refusal') {
+    data = await post(cleanKey(apiKey), { ...body, max_tokens: 4000 }); // one more go with extra room
+    text = replyText(data);
+  }
+  if (!text) throw { code: 'empty', message: data.stop_reason || '' };
   return { text, source: 'ai' };
 }
 
@@ -157,6 +176,7 @@ export const ERROR_TEXT = {
   'bad-key': 'The AI key on this phone isn\'t working. Check it in Me → Miss Curious Bae.',
   'no-credit': 'The AI account has run out of credit, so here\'s a quick note instead.',
   'no-access': 'The AI key on this phone isn\'t allowed to use Claude. Check it in Me → Miss Curious Bae.',
+  empty: "Miss Curious Bae couldn't put her reply into words that time. Here's a quick note instead; tap Try again for a proper reply.",
   busy: 'The AI is busy at the moment. Here\'s a quick note instead; try again in a minute.',
   error: 'Something went wrong with the AI reply. Here\'s a quick note instead.',
 };
