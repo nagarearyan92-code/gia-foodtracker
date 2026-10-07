@@ -3,7 +3,7 @@ import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { C } from './theme';
 import { useSetting } from './store';
 import { DEFAULT_SUPPS, saveSupps, toggleSupp } from './wellbeing';
-import { getKey, removeKey, setKey } from './ai';
+import { KEY_PROBLEM, cleanKey, getKey, removeKey, setKey, testKey } from './ai';
 import { Btn, Card, H, Muted, s as ui } from './ui';
 
 // Diary: tick off today's supplements.
@@ -77,35 +77,58 @@ export function SuppSettings({ onToast }) {
 export function AiSettings({ onToast }) {
   const [has, setHas] = useState(null);
   const [val, setVal] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [status, setStatus] = useState(null); // null | { ok, code }
   useEffect(() => { getKey().then(k => setHas(!!k)); }, []);
   if (has === null) return null;
 
   async function save() {
-    const k = val.trim();
+    const k = cleanKey(val);
     if (!k.startsWith('sk-ant-')) return Alert.alert('That doesn\'t look right', 'The key should start with sk-ant-. Copy it again from the Claude Console.');
+    setChecking(true);
+    const r = await testKey(k);
+    setChecking(false);
+    // A key that's simply offline/busy to check is still saved; a rejected key isn't.
+    if (!r.ok && (r.code === 'bad-key' || r.code === 'no-access')) {
+      setStatus(r);
+      return Alert.alert('That key didn\'t work', KEY_PROBLEM[r.code]);
+    }
     await setKey(k);
-    setVal(''); setHas(true);
-    onToast && onToast('Miss Curious Bae is ready 🌸');
+    setVal(''); setHas(true); setStatus(r);
+    onToast && onToast(r.ok ? 'Miss Curious Bae is ready 🌸' : 'Key saved');
   }
+  async function check() {
+    setChecking(true);
+    const r = await testKey();
+    setChecking(false); setStatus(r);
+    onToast && onToast(r.ok ? 'Key works 🌸' : 'Key problem');
+  }
+  const problem = status && !status.ok ? (KEY_PROBLEM[status.code] || KEY_PROBLEM.error) + (status.code === 'error' && status.message ? ` (${status.message})` : '') : '';
   return (
     <Card style={{ gap: 10 }}>
       <H>Miss Curious Bae 🌸</H>
       <Muted>Your AI check-in buddy. She replies to how you're feeling.</Muted>
       {has ? (
         <>
-          <Text style={{ color: C.good, fontWeight: '700' }}>✓ On. She'll reply to your check-ins.</Text>
+          {problem
+            ? <Text style={{ color: C.accent, fontWeight: '700' }}>✗ {problem}</Text>
+            : <Text style={{ color: C.good, fontWeight: '700' }}>{status?.ok ? '✓ Key checked and working.' : '✓ Key saved.'} She'll reply to your check-ins.</Text>}
           <Muted>The key is stored securely on this phone only. What you write in a check-in, plus a short summary of your day, is sent to Anthropic's Claude, which powers her replies.</Muted>
-          <Btn small kind="ghost" title="Remove key" onPress={() => Alert.alert('Turn off Miss Curious Bae?', 'Check-ins will use short built-in replies instead.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Remove', style: 'destructive', onPress: async () => { await removeKey(); setHas(false); } },
-          ])} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Btn small title={checking ? 'Checking…' : 'Test key'} disabled={checking} onPress={check} style={{ flex: 1 }} />
+            <Btn small kind="ghost" title={problem ? 'Replace key' : 'Remove key'} style={{ flex: 1 }} onPress={() => Alert.alert(problem ? 'Remove this key?' : 'Turn off Miss Curious Bae?', problem ? 'Then paste a new one.' : 'Check-ins will use short built-in replies instead.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Remove', style: 'destructive', onPress: async () => { await removeKey(); setHas(false); setStatus(null); } },
+            ])} />
+          </View>
         </>
       ) : (
         <>
           <Muted>Paste the API key from the Claude Console to turn her on. Without it, check-ins get short built-in notes.</Muted>
           <TextInput value={val} onChangeText={setVal} placeholder="sk-ant-…" placeholderTextColor="#C9A3AF" autoCapitalize="none" autoCorrect={false}
             secureTextEntry style={ui.input} />
-          <Btn title="Save key" onPress={save} disabled={!val.trim()} />
+          {problem ? <Text style={{ color: C.accent, fontWeight: '700' }}>✗ {problem}</Text> : null}
+          <Btn title={checking ? 'Checking the key…' : 'Save key'} onPress={save} disabled={!val.trim() || checking} />
         </>
       )}
     </Card>

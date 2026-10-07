@@ -151,6 +151,15 @@ function Chat({ dayKey, c, setC, onEdit }) {
 
   useEffect(() => { getKey().then(k => setHasKey(!!k)); }, []);
 
+  const lastMsg = c.thread[c.thread.length - 1];
+  const canRetry = !busy && hasKey && lastMsg?.role === 'assistant' && lastMsg.source === 'local';
+  async function retry() {
+    const next = { ...c, thread: c.thread.slice(0, -1) };
+    setNotice('');
+    setC(next);
+    await saveCheckin(dayKey, next);
+  }
+
   async function send() {
     const t = msg.trim();
     if (!t || busy) return;
@@ -186,6 +195,7 @@ function Chat({ dayKey, c, setC, onEdit }) {
           </View>
         ) : null}
         {notice ? <Muted>{notice}</Muted> : null}
+        {canRetry ? <Btn small kind="ghost" title="Try again with Miss Curious Bae" onPress={retry} /> : null}
         {!hasKey ? <Muted>Miss Curious Bae isn't fully set up on this phone yet, so these are short built-in notes. Turn her on in Me → Miss Curious Bae.</Muted> : null}
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.surface, alignItems: 'flex-end' }}>

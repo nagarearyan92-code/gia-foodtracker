@@ -15,8 +15,60 @@ export async function getKey() {
   if (Platform.OS === 'web') return null;
   try { return await SecureStore.getItemAsync(KEY_NAME); } catch (e) { return null; }
 }
-export async function setKey(k) { await SecureStore.setItemAsync(KEY_NAME, k.trim()); }
+// Keys copied from emails, notes or chat apps can pick up spaces, line breaks or invisible characters.
+export const cleanKey = k => (k || '').replace(/[\s​-‍⁠﻿]/g, '');
+export async function setKey(k) { await SecureStore.setItemAsync(KEY_NAME, cleanKey(k)); }
 export async function removeKey() { await SecureStore.deleteItemAsync(KEY_NAME); }
+
+async function post(apiKey, body, ms = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    throw { code: 'offline' };
+  } finally {
+    clearTimeout(timer);
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* ignore */ }
+  if (!res.ok) {
+    const msg = data?.error?.message || '';
+    if (res.status === 401) throw { code: 'bad-key', message: msg };
+    if (/credit balance/i.test(msg) || res.status === 402) throw { code: 'no-credit', message: msg };
+    if (res.status === 403) throw { code: 'no-access', message: msg };
+    if (res.status === 429 || res.status === 529 || res.status >= 500) throw { code: 'busy', message: msg };
+    throw { code: 'error', message: msg || `HTTP ${res.status}` };
+  }
+  return data;
+}
+
+// A tiny request (costs a tiny fraction of a penny) to check the key really works.
+export async function testKey(k) {
+  const apiKey = cleanKey(k) || (await getKey());
+  if (!apiKey) return { ok: false, code: 'no-key' };
+  try {
+    await post(apiKey, { model: MODEL, max_tokens: 1, messages: [{ role: 'user', content: 'Hi' }] }, 20000);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, code: e?.code || 'error', message: e?.message || '' };
+  }
+}
+
+export const KEY_PROBLEM = {
+  'bad-key': "Anthropic says this key isn't valid. It may be an old or deleted key, or only part of it got copied. Create a new key in the Claude Console and copy the whole thing.",
+  'no-credit': 'The key works, but the Anthropic account has no credit left. Add credit under Billing in the Claude Console.',
+  'no-access': "This key doesn't have permission to use Claude. Check the key's workspace in the Claude Console.",
+  offline: "Couldn't reach Anthropic. Check the phone is online and try again.",
+  busy: 'Anthropic is busy right now. Try again in a minute.',
+  error: 'Something went wrong checking the key.',
+};
 
 const SYSTEM = `You are Miss Curious Bae, a warm, caring and gently playful companion inside Gia's personal food and wellbeing app. Gia chose your name. You're curious about her day and genuinely care how she feels. Don't sign your messages or keep repeating your name. Her partner Aryan made this app for her as a gift. Gia lives in the UK, is vegetarian (no eggs; she avoids soy products), and uses the app to track food, cycle, sleep and mood.
 
@@ -94,30 +146,7 @@ export async function askClaude(key, checkin, thread) {
   const msgs = [{ role: 'user', content: first }, ...thread.slice(1).map(m => ({ role: m.role, content: m.text }))].slice(-14);
   if (msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: first });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
-  let res;
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 500, system: SYSTEM, messages: msgs }),
-      signal: controller.signal,
-    });
-  } catch (e) {
-    throw { code: 'offline' };
-  } finally {
-    clearTimeout(timer);
-  }
-  let data = null;
-  try { data = await res.json(); } catch (e) { /* ignore */ }
-  if (!res.ok) {
-    const msg = data?.error?.message || '';
-    if (res.status === 401) throw { code: 'bad-key' };
-    if (/credit balance/i.test(msg) || res.status === 402) throw { code: 'no-credit' };
-    if (res.status === 429 || res.status === 529 || res.status >= 500) throw { code: 'busy' };
-    throw { code: 'error', message: msg };
-  }
+  const data = await post(cleanKey(apiKey), { model: MODEL, max_tokens: 500, system: SYSTEM, messages: msgs });
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
   return { text, source: 'ai' };
 }
@@ -127,12 +156,17 @@ export const ERROR_TEXT = {
   offline: "Couldn't reach the AI right now (no internet?). Here's a quick note instead.",
   'bad-key': 'The AI key on this phone isn\'t working. Check it in Me → Miss Curious Bae.',
   'no-credit': 'The AI account has run out of credit, so here\'s a quick note instead.',
+  'no-access': 'The AI key on this phone isn\'t allowed to use Claude. Check it in Me → Miss Curious Bae.',
   busy: 'The AI is busy at the moment. Here\'s a quick note instead; try again in a minute.',
   error: 'Something went wrong with the AI reply. Here\'s a quick note instead.',
 };
 
 // Built-in reply when the AI isn't available.
 export async function localReply(key, c) {
+  // Follow-up messages need the AI; don't repeat the first note as if it were an answer.
+  if ((c.thread || []).some(m => m.role === 'assistant')) {
+    return { text: "I really want to reply to that properly, but I can't reach my AI brain right now. Tap Try again in a bit 💗", source: 'local' };
+  }
   const cyc = predict(await loadCycle(), new Date(key + 'T12:00'));
   const [day] = await loadDays([key]);
   const t = sumNutrients(day.entries.map(e => e.n));
