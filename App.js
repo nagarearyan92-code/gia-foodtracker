@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Animated, Pressable, Text, View } from 'react-native';
+import { AppState, Animated, Image, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { C } from './src/theme';
@@ -25,6 +25,10 @@ export default function App() {
   const [toast, setToast] = useState('');
   const fade = useRef(new Animated.Value(0)).current;
   const timer = useRef(null);
+  const [welcome, setWelcome] = useState(true);
+  const welcomeFade = useRef(new Animated.Value(1)).current;
+  const hideWelcome = () => Animated.timing(welcomeFade, { toValue: 0, duration: 450, useNativeDriver: true }).start(() => setWelcome(false));
+  useEffect(() => { const t = setTimeout(hideWelcome, 3000); return () => clearTimeout(t); }, []); // eslint-disable-line
 
   // Keep reminders planned ahead, and skip today's ones for meals already logged.
   useEffect(() => {
@@ -72,6 +76,15 @@ export default function App() {
             );
           })}
         </View>
+        {welcome ? (
+          <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: welcomeFade }}>
+            <Pressable onPress={hideWelcome} style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Image source={require('./assets/splash-icon.png')} style={{ width: 220, height: 220 }} />
+              <Text style={{ fontSize: 40, fontWeight: '800', color: C.accent, letterSpacing: -0.5 }}>Gia Mia</Text>
+              <Text style={{ fontSize: 16, color: C.muted, fontWeight: '600', textAlign: 'center', paddingHorizontal: 24 }}>made with love, for hers truly,{'\n'}by Aryan 💗</Text>
+            </Pressable>
+          </Animated.View>
+        ) : null}
       </SafeAreaView>
     </SafeAreaProvider>
   );

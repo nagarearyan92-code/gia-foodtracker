@@ -54,20 +54,20 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk GiaFoodTracker.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk GiaMia.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: GiaFoodTracker-apk
-          path: GiaFoodTracker.apk
+          name: GiaMia-apk
+          path: GiaMia.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Gia Food Tracker 1.0.${{ github.run_number }}
+          name: Gia Mia 1.0.${{ github.run_number }}
           body: |
-            Download **GiaFoodTracker.apk** below on the Android phone and open it to install or update.
+            Download **GiaMia.apk** below on the Android phone and open it to install or update.
             Updating keeps all logged food, foods and settings.
-          files: GiaFoodTracker.apk
+          files: GiaMia.apk
           make_latest: true

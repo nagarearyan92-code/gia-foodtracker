@@ -79,6 +79,7 @@ export default function Me({ onToast }) {
         <Btn title="Save targets" onPress={save} />
       </Card>
 
+      <Text style={{ textAlign: 'center', color: C.accent, fontWeight: '700', marginTop: 6 }}>Gia Mia, made with love, for hers truly, by Aryan 💗</Text>
       <Muted style={{ textAlign: 'center' }}>
         Everything is saved on this phone. Barcode lookups use Open Food Facts, a free food database; values from it are crowd-sourced, so check the pack if a number looks odd.
       </Muted>

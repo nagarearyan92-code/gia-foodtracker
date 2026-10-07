@@ -33,7 +33,7 @@ export async function lookupBarcode(code) {
   const timer = setTimeout(() => controller.abort(), 12000);
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'GiaFoodTracker/1.0 (Android; personal use)' },
+      headers: { 'User-Agent': 'GiaMia/1.0 (Android; personal use)' },
       signal: controller.signal,
     });
     if (res.status === 404) return { found: false };

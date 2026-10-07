@@ -1,4 +1,4 @@
-# Gia Food Tracker
+# Gia Mia
 
 A vegetarian food and nutrition tracker for Android, built with Expo (React Native).
 
@@ -14,7 +14,7 @@ Everything is stored on the phone.
 ## Getting the app
 
 Every push to `main` builds an APK with GitHub Actions and publishes it under
-**Releases**. On the phone, open the latest release, download `GiaFoodTracker.apk`
+**Releases**. On the phone, open the latest release, download `GiaMia.apk`
 and open it. The first time, Android asks to allow installs from the browser or files app.
 
 ## Changing foods or recipes

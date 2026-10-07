@@ -9,7 +9,7 @@ export async function turnOnReminders() {
   const ok = await ensurePermission();
   if (!ok) {
     Alert.alert('Notifications are off',
-      'To get reminders, allow notifications for Gia Food Tracker in your phone settings.',
+      'To get reminders, allow notifications for Gia Mia in your phone settings.',
       [{ text: 'Not now', style: 'cancel' }, { text: 'Open settings', onPress: () => Linking.openSettings() }]);
     return false;
   }
