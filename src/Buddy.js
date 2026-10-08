@@ -52,8 +52,8 @@ export default function Buddy() {
     <>
       <Animated.View {...pan.panHandlers} accessibilityRole="button" accessibilityLabel="Chat with Miss Curious Bae"
         style={{ position: 'absolute', left: 0, top: 0, transform: pos.getTranslateTransform(), width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-          backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', elevation: 8,
-          shadowColor: '#7A1E3E', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, borderWidth: 3, borderColor: '#FFE3EB' }}>
+          backgroundColor: C.accent2, alignItems: 'center', justifyContent: 'center', elevation: 8,
+          shadowColor: '#7A1E3E', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, borderWidth: 3, borderColor: C.accent2Soft }}>
         <Text style={{ fontSize: 28 }}>🌸</Text>
       </Animated.View>
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)} presentationStyle="fullScreen">

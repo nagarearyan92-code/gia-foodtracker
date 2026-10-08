@@ -76,11 +76,11 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
         <RemindersInvite onToast={onToast} />
 
         <Pressable onPress={() => setFlow({ meal: 'Snacks', start: 'scan' })}
-          style={({ pressed }) => [{ backgroundColor: C.accent, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}>
+          style={({ pressed }) => [{ backgroundColor: C.accent2, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}>
           <Text style={{ fontSize: 26 }}>▦</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Scan a barcode</Text>
-            <Text style={{ color: '#FFE3EB' }}>Look up any packed food, or add it if it's new</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.88)' }}>Look up any packed food, or add it if it's new</Text>
           </View>
         </Pressable>
 
@@ -114,12 +114,12 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           );
         })}
 
-        <Pressable onPress={onOpenRecipes} style={({ pressed }) => [{ backgroundColor: C.accentSoft, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
+        <Pressable onPress={onOpenRecipes} style={({ pressed }) => [{ backgroundColor: C.accent2Soft, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: C.ink, fontWeight: '700' }}>Need ideas? 30 vegetarian recipes</Text>
             <Muted>Dal makhani, palak paneer 2.0, protein mousse and more</Muted>
           </View>
-          <Text style={{ color: C.accent, fontSize: 22, fontWeight: '800' }}>›</Text>
+          <Text style={{ color: C.accent2, fontSize: 22, fontWeight: '800' }}>›</Text>
         </Pressable>
 
         <SuppCard dayKey={key} />

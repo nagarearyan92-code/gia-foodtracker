@@ -37,7 +37,7 @@ export default function Me({ onToast }) {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 110 }} keyboardShouldPersistTaps="handled">
-      <Card style={{ backgroundColor: C.accentSoft, borderColor: C.accentSoft, gap: 8 }}>
+      <Card style={{ backgroundColor: C.accent2Soft, borderColor: C.accent2Line, gap: 8 }}>
         <Text style={{ fontSize: 15, lineHeight: 22, color: C.ink }}>
           I made this little corner of the internet just for you. Every recipe in here is something I thought you'd love, and every food is one you actually buy.
         </Text>

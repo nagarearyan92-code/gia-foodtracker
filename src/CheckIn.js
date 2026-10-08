@@ -242,7 +242,7 @@ function LowMoodNote() {
 
 const Section = ({ title, children }) => <View style={{ gap: 8 }}><H style={{ fontSize: 16 }}>{title}</H>{children}</View>;
 const Row = ({ children }) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{children}</View>;
-const card = { backgroundColor: C.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.line, flexDirection: 'row', alignItems: 'center', gap: 12 };
+const card = { backgroundColor: C.accent2Soft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.accent2Line, flexDirection: 'row', alignItems: 'center', gap: 12 };
 const bubble = { padding: 12, borderRadius: 16, maxWidth: '88%' };
 const mine = { alignSelf: 'flex-end', backgroundColor: C.accent, borderBottomRightRadius: 4 };
 const theirs = { alignSelf: 'flex-start', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderBottomLeftRadius: 4 };

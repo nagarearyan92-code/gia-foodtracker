@@ -9,6 +9,10 @@ export const C = {
   accent: '#C2456F',
   accentInk: '#FFFFFF',
   accentSoft: '#FBDCE5',
+  // Second colour: used on a few highlight spots alongside the pink.
+  accent2: '#8B6BC9',
+  accent2Soft: '#EFE7FB',
+  accent2Line: '#DCCDF3',
   protein: '#C2456F',
   carbs: '#B9801A',
   fat: '#7B5CB8',
