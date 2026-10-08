@@ -12,6 +12,7 @@ import { reschedule } from './src/reminders';
 import { onDiaryChange } from './src/store';
 import { onRestore } from './src/backup';
 import Buddy from './src/Buddy';
+import { useMoodTheme } from './src/moodTheme';
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -27,6 +28,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const fade = useRef(new Animated.Value(0)).current;
   const timer = useRef(null);
+  useMoodTheme(); // the second colour follows today's mood (re-renders the screens when it changes)
   const [welcome, setWelcome] = useState(true);
   const [epoch, setEpoch] = useState(0); // bumped after a restore so every screen reloads
   useEffect(() => onRestore(() => { setEpoch(e => e + 1); setTab('diary'); }), []);

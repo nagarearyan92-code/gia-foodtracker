@@ -15,7 +15,7 @@ export function CheckInCard({ dayKey, isToday }) {
   return (
     <>
       {c && c.mood ? (
-        <Pressable onPress={() => setOpen({})} style={({ pressed }) => [card, pressed && { opacity: 0.8 }]}>
+        <Pressable onPress={() => setOpen({})} style={({ pressed }) => [cardStyle(), pressed && { opacity: 0.8 }]}>
           <Text style={{ fontSize: 30 }}>{moodFace(c.mood)}</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ color: C.ink, fontWeight: '700' }}>
@@ -30,7 +30,7 @@ export function CheckInCard({ dayKey, isToday }) {
           <Text style={{ color: C.accent, fontSize: 22, fontWeight: '800' }}>›</Text>
         </Pressable>
       ) : (
-        <View style={[card, { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]}>
+        <View style={[cardStyle(), { flexDirection: 'column', alignItems: 'stretch', gap: 10 }]}>
           <Text style={{ color: C.ink, fontWeight: '800', fontSize: 16 }}>{isToday ? 'How are you today?' : 'How were you this day?'}</Text>
           <Muted style={{ marginTop: -6 }}>Check in with Miss Curious Bae 🌸</Muted>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -242,7 +242,8 @@ function LowMoodNote() {
 
 const Section = ({ title, children }) => <View style={{ gap: 8 }}><H style={{ fontSize: 16 }}>{title}</H>{children}</View>;
 const Row = ({ children }) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{children}</View>;
-const card = { backgroundColor: C.accent2Soft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.accent2Line, flexDirection: 'row', alignItems: 'center', gap: 12 };
+// A function so it picks up today's mood colour.
+const cardStyle = () => ({ backgroundColor: C.accent2Soft, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.accent2Line, flexDirection: 'row', alignItems: 'center', gap: 12 });
 const bubble = { padding: 12, borderRadius: 16, maxWidth: '88%' };
 const mine = { alignSelf: 'flex-end', backgroundColor: C.accent, borderBottomRightRadius: 4 };
 const theirs = { alignSelf: 'flex-start', backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderBottomLeftRadius: 4 };

@@ -5,7 +5,7 @@ import { dateKey, deleteWeight, logWeight, saveGoals, useGoals, useWeights } fro
 import { Btn, Card, Field, H, Muted, r1 } from '../ui';
 import RemindersCard from '../RemindersCard';
 import TdeeCard, { autoUpdateTargets } from '../TdeeCard';
-import { AiSettings, SuppSettings } from '../WellbeingCards';
+import { AiSettings, MoodColourCard, SuppSettings } from '../WellbeingCards';
 import { BackupCard, UpdatesCard } from '../AppCards';
 
 export default function Me({ onToast }) {
@@ -47,6 +47,7 @@ export default function Me({ onToast }) {
       </Card>
 
       <AiSettings onToast={onToast} />
+      <MoodColourCard />
 
       <RemindersCard onToast={onToast} />
 

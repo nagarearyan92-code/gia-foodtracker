@@ -99,10 +99,37 @@ export async function updateEntry(key, id, patch) {
   await writeJSON('day:' + key, day);
   diaryChanged();
 }
+// waterLog (added later, optional) remembers each amount added so Undo takes off the right one.
 export async function addWater(key, ml) {
   const day = await readJSON('day:' + key, { entries: [], water: 0 });
   day.water = Math.max(0, (day.water || 0) + ml);
+  if (ml > 0) day.waterLog = [...(day.waterLog || []), ml].slice(-40);
   await writeJSON('day:' + key, day);
+}
+export async function undoWater(key) {
+  const day = await readJSON('day:' + key, { entries: [], water: 0 });
+  const log = day.waterLog || [];
+  const last = log.length ? log[log.length - 1] : 250;
+  day.waterLog = log.slice(0, -1);
+  day.water = Math.max(0, (day.water || 0) - last);
+  await writeJSON('day:' + key, day);
+  return last;
+}
+
+// "150 g" -> { qty: 150, unit: 'g' }, "1.5 servings" -> { qty: 1.5, unit: 'serving' }.
+export function parseAmount(label) {
+  const m = String(label || '').match(/^\s*([\d.]+)\s*(g|ml|servings?)\b/i);
+  if (!m || !(parseFloat(m[1]) > 0)) return null;
+  return { qty: parseFloat(m[1]), unit: /^serv/i.test(m[2]) ? 'serving' : m[2].toLowerCase() };
+}
+export function amountLabel(qty, unit) {
+  return unit === 'serving' ? `${qty} serving${qty === 1 ? '' : 's'}` : `${qty} ${unit}`;
+}
+// Scales logged nutrients to a new amount.
+export function rescale(n, from, to) {
+  const f = to / from; const out = {};
+  for (const k in n) out[k] = (n[k] || 0) * f;
+  return out;
 }
 export async function loadDays(keys) {
   const pairs = await AsyncStorage.multiGet(keys.map(k => 'day:' + k));

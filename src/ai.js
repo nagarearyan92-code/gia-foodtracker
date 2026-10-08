@@ -7,6 +7,7 @@ import { DEFAULT_GOALS } from './store';
 import { loadCycle, predict, PHASES } from './cycle';
 import { ENERGY, MOODS, SLEEP_Q, loadCheckins, loadSuppLog, loadSupps } from './wellbeing';
 import { RECIPES } from './data';
+import { colourNote } from './moodTheme';
 
 const MODEL = 'claude-sonnet-5-5';
 const KEY_NAME = 'anthropic_api_key';
@@ -180,7 +181,8 @@ export async function askClaude(key, checkin, thread) {
   const apiKey = await getKey();
   if (!apiKey) throw { code: 'no-key' };
   const ctx = await buildContext(key);
-  const first = `Here's my check-in.\n${describeCheckin(checkin)}\n${checkin.feeling ? `In my own words: ${checkin.feeling}` : "I didn't write anything else."}\n\n[Snapshot of my day, for context]\n${ctx}`;
+  const note = await moodNote(key, checkin);
+  const first = `Here's my check-in.\n${describeCheckin(checkin)}\n${checkin.feeling ? `In my own words: ${checkin.feeling}` : "I didn't write anything else."}\n\n[Snapshot of my day, for context]\n${ctx}${note ? `\n\n[App note: the app's colours have just changed to match my mood. In your first reply, mention it lightly in a few words, along the lines of: "${note}"]` : ''}`;
   // Skip empty messages and merge back-to-back messages from the same side (the API needs them to alternate).
   const msgs = [];
   [{ role: 'user', text: first }, ...thread.slice(1)].forEach(m => {
@@ -217,6 +219,12 @@ export const ERROR_TEXT = {
   error: 'Something went wrong with the AI reply. Here\'s a quick note instead.',
 };
 
+// The colour-change line for today's check-in (empty if mood colours are off or it's another day).
+async function moodNote(key, c) {
+  const on = await readSetting('moodColours', true);
+  return colourNote(c.mood, on !== false, key === dateKey(new Date()));
+}
+
 // Built-in reply when the AI isn't available.
 export async function localReply(key, c) {
   // Follow-up messages need the AI; don't repeat the first note as if it were an answer.
@@ -239,5 +247,7 @@ export async function localReply(key, c) {
   if (low && cyc.hasData && (cyc.phase === 'luteal' && cyc.daysToNext <= 5)) out.push('Your period is due soon, and mood often dips in these days. It usually passes.');
   if ((day.water || 0) < 750 && new Date().getHours() >= 14) out.push('A glass of water might help too.');
   if (out.length < 3) out.push(low ? 'A short walk outside or a chat with someone you love can make a real difference.' : 'Keep being kind to yourself 💗');
+  const note = await moodNote(key, c);
+  if (note) out.push(note);
   return { text: out.join(' '), source: 'local' };
 }

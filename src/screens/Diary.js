@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { C, MACROS, MEALS, MICROS } from '../theme';
-import { addWater, dateKey, removeEntry, sumNutrients, updateEntry, useDay, useGoals, useSetting } from '../store';
+import { addWater, amountLabel, dateKey, parseAmount, removeEntry, rescale, sumNutrients, undoWater, updateEntry, useDay, useGoals, useSetting } from '../store';
 import { DEFAULT_SUPPS, suppAmounts } from '../wellbeing';
 import AddFlow from '../AddFlow';
 import { RemindersInvite } from '../RemindersCard';
@@ -10,7 +10,7 @@ import { PeriodBanner } from './Cycle';
 import { CheckInCard } from '../CheckIn';
 import { SuppCard } from '../WellbeingCards';
 import { UpdateBanner } from '../AppCards';
-import { Bar, Btn, Card, H, Muted, Ring, Sheet, r0, r1 } from '../ui';
+import { Bar, Btn, Card, Chip, Field, H, Muted, Ring, Sheet, r0, r1 } from '../ui';
 import TimeRow from '../TimeRow';
 import { fmtHM, toMin } from '../times';
 
@@ -132,10 +132,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
           <View style={{ height: 10, borderRadius: 99, backgroundColor: C.sunk, overflow: 'hidden', marginVertical: 10 }}>
             <View style={{ height: '100%', width: Math.min(100, ((day.water || 0) / goals.water) * 100) + '%', backgroundColor: C.water }} />
           </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Btn small kind="ghost" title="− 250 ml" onPress={() => addWater(key, -250)} style={{ flex: 1 }} />
-            <Btn small title="+ 250 ml glass" onPress={() => addWater(key, 250)} style={{ flex: 2 }} />
-          </View>
+          <WaterButtons dayKey={key} water={day.water || 0} onToast={onToast} />
         </Card>
 
         <Card>
@@ -147,7 +144,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
             ? <Muted>Nothing recorded yet today.</Muted>
             : microsWithData.map(m => <Bar key={m.key} label={m.label} value={micro(m.key)} target={m.target} unit={m.unit} color={C.fibre} limit={m.limit} />)}
         </Card>
-        <Muted style={{ textAlign: 'center' }}>Tap a diary item to change its time or remove it.</Muted>
+        <Muted style={{ textAlign: 'center' }}>Tap a diary item to change its amount or time, or remove it.</Muted>
       </ScrollView>
 
       <Sheet visible={!!entry} title="Diary item" onClose={() => setEntry(null)}>
@@ -162,12 +159,31 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
 function EntryEditor({ e, onSave, onDelete }) {
   const [time, setTime] = useState(e.time || (e.meal === 'Breakfast' ? '08:30' : e.meal === 'Lunch' ? '13:00' : e.meal === 'Dinner' ? '19:30' : '16:00'));
   const [meal, setMeal] = useState(e.meal);
+  const orig = parseAmount(e.amountLabel); // null for very old entries without a clear amount
+  const [amt, setAmt] = useState(orig ? String(orig.qty) : '');
+  const qty = parseFloat(amt);
+  const changed = orig && qty > 0 && qty !== orig.qty;
+  const n = changed ? rescale(e.n, orig.qty, qty) : e.n;
+  function save() {
+    if (orig && !(qty > 0)) return Alert.alert('Check the amount', 'Type how much you had, e.g. 150.');
+    onSave(changed ? { time, meal, n, amountLabel: amountLabel(qty, orig.unit) } : { time, meal });
+  }
   return (
     <View style={{ gap: 16 }}>
       <View>
         <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink }}>{e.name}</Text>
-        <Muted>{e.amountLabel} · {r0(e.n.k)} kcal · {r1(e.n.p)} g protein</Muted>
+        <Muted>{changed ? amountLabel(qty, orig.unit) : e.amountLabel} · {r0(n.k)} kcal · {r1(n.p)} g protein</Muted>
       </View>
+      {orig ? (
+        <View style={{ gap: 8 }}>
+          <Field label={orig.unit === 'serving' ? 'Servings' : `Amount (${orig.unit})`} value={amt} onChangeText={setAmt} numeric />
+          {orig.unit === 'serving' ? (
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {['0.5', '1', '1.5', '2'].map(v => <Chip key={v} label={v} active={amt === v} onPress={() => setAmt(v)} />)}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <TimeRow label="Time eaten" value={time} onChange={setTime} />
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
         {MEALS.map(m => (
@@ -176,8 +192,43 @@ function EntryEditor({ e, onSave, onDelete }) {
           </Pressable>
         ))}
       </View>
-      <Btn title="Save" onPress={() => onSave({ time, meal })} />
+      <Btn title="Save" onPress={save} />
       <Btn kind="ghost" title="Remove from diary" onPress={onDelete} />
+    </View>
+  );
+}
+
+// Water: quick sizes, any other amount, and Undo for the last one added.
+function WaterButtons({ dayKey, water, onToast }) {
+  const [other, setOther] = useState(null); // null = closed, else the typed text
+  const addOther = async () => {
+    const ml = Math.round(parseFloat(other));
+    if (!(ml > 0 && ml <= 3000)) return Alert.alert('Check the amount', 'Type the amount in ml, e.g. 330.');
+    await addWater(dayKey, ml); setOther(null); onToast && onToast(`Added ${ml} ml`);
+  };
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {[[150, 'Small glass'], [250, 'Glass'], [500, 'Bottle']].map(([ml, label]) => (
+          <Pressable key={ml} onPress={() => addWater(dayKey, ml)}
+            style={({ pressed }) => [{ flex: 1, backgroundColor: C.accent, borderRadius: 12, paddingVertical: 9, alignItems: 'center' }, pressed && { opacity: 0.8 }]}>
+            <Text style={{ color: '#fff', fontWeight: '800' }}>+ {ml} ml</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11 }}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {other === null ? (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Btn small kind="ghost" title="Other amount" onPress={() => setOther('')} style={{ flex: 1 }} />
+          <Btn small kind="ghost" title="Undo last" disabled={!water} onPress={async () => { const ml = await undoWater(dayKey); onToast && onToast(`Took off ${ml} ml`); }} style={{ flex: 1 }} />
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
+          <Field label="Amount (ml)" value={other} onChangeText={setOther} numeric autoFocus placeholder="e.g. 330" />
+          <Btn small title="Add" onPress={addOther} />
+          <Btn small kind="ghost" title="Cancel" onPress={() => setOther(null)} />
+        </View>
+      )}
     </View>
   );
 }

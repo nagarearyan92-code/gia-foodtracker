@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { C } from './theme';
 import { dateKey, useSetting, writeSetting } from './store';
-import { DEFAULT_SUPPS, SUPP_NUTRIENTS, normalizeSupps, saveSupps, setSuppTime, toggleSupp } from './wellbeing';
+import { DEFAULT_SUPPS, MOODS, SUPP_NUTRIENTS, normalizeSupps, saveSupps, setSuppTime, toggleSupp } from './wellbeing';
 import TimeRow from './TimeRow';
+import { MOOD_COLOURS } from './moodTheme';
 import { averageHM, fmtHM, nowHM } from './times';
 import { KEY_PROBLEM, cleanKey, getKey, removeKey, setKey, testKey } from './ai';
 import { Btn, Card, Chip, Field, H, Muted, Sheet, s as ui } from './ui';
@@ -258,5 +259,33 @@ function BubbleSwitch() {
       </View>
       <Switch value={!hidden} onValueChange={v => writeSetting('bubbleHidden', !v)} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
     </View>
+  );
+}
+
+// Me tab: let the second colour follow her mood.
+export function MoodColourCard() {
+  const on = useSetting('moodColours', true);
+  if (on === null) return null;
+  const moods = [[5, '😄'], [4, '🙂'], [3, '😐'], [2, '😕'], [1, '😣']];
+  return (
+    <Card style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <H>Mood colours 🎨</H>
+          <Muted>After your check-in, the app's second colour changes to match how you feel. It goes back to burgundy each new day.</Muted>
+        </View>
+        <Switch value={on !== false} onValueChange={v => writeSetting('moodColours', v)} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', opacity: on === false ? 0.4 : 1 }}>
+        {moods.map(([v, face]) => (
+          <View key={v} style={{ alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: MOOD_COLOURS[v].accent2, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 18 }}>{face}</Text>
+            </View>
+            <Text style={{ fontSize: 11, color: C.muted }}>{MOODS.find(m => m.v === v).label}</Text>
+          </View>
+        ))}
+      </View>
+    </Card>
   );
 }
