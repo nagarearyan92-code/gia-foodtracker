@@ -1,0 +1,44 @@
+name: Claude (cloud coding)
+
+# Lets Jarvis (or you) ask Claude to work on Gia Mia from a phone: open an issue or comment
+# mentioning @claude. Claude works on a separate branch and reports back; nothing reaches
+# Gia until the change is merged into main. Only people with write access can trigger it.
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && !github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install packages
+        run: npm ci
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 80
+            --allowedTools "Bash(npm ci),Bash(npm install:*),Bash(npx expo export:*),Bash(npx expo install:*),Bash(node:*),Bash(git status),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"

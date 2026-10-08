@@ -5,6 +5,12 @@ name: Build Android APK
 on:
   push:
     branches: [main]
+    # Changes to these alone don't change the app, so they don't need a new build.
+    paths-ignore:
+      - '.github/workflows/claude.yml'
+      - '.github/workflows/build-apk.yml'
+      - 'CLAUDE.md'
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
