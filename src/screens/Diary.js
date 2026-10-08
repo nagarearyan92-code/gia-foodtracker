@@ -77,7 +77,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
 
         <Pressable onPress={() => setFlow({ meal: 'Snacks', start: 'scan' })}
           style={({ pressed }) => [{ backgroundColor: C.accent2, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }, pressed && { opacity: 0.8 }]}>
-          <Text style={{ fontSize: 26 }}>▦</Text>
+          <Text style={{ fontSize: 26, color: '#fff' }}>▦</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Scan a barcode</Text>
             <Text style={{ color: 'rgba(255,255,255,0.88)' }}>Look up any packed food, or add it if it's new</Text>

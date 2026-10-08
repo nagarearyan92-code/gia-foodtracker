@@ -9,10 +9,10 @@ export const C = {
   accent: '#C2456F',
   accentInk: '#FFFFFF',
   accentSoft: '#FBDCE5',
-  // Second colour: used on a few highlight spots alongside the pink.
-  accent2: '#8B6BC9',
-  accent2Soft: '#EFE7FB',
-  accent2Line: '#DCCDF3',
+  // Second colour (burgundy): used on a few highlight spots alongside the pink.
+  accent2: '#7A1934',
+  accent2Soft: '#F6E3E8',
+  accent2Line: '#EBC7D1',
   protein: '#C2456F',
   carbs: '#B9801A',
   fat: '#7B5CB8',
