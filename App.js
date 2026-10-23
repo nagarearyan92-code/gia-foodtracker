@@ -16,8 +16,6 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { deliverDue } from './src/outreach';
 import { useMoodTheme } from './src/moodTheme';
-import { GiftOverlay } from './src/GiftCards';
-import './src/gifts'; // defines the background gift check
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -107,7 +105,6 @@ export default function App() {
           })}
         </View>
         <Buddy />
-        {!welcome ? <GiftOverlay /> : null}
         {welcome ? (
           <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: welcomeFade }}>
             <Pressable onPress={hideWelcome} style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 6 }}>

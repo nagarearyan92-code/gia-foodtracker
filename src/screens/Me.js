@@ -6,7 +6,6 @@ import { Btn, Card, Field, H, Muted, r1 } from '../ui';
 import RemindersCard from '../RemindersCard';
 import TdeeCard, { autoUpdateTargets } from '../TdeeCard';
 import { AiSettings, MoodColourCard, SuppSettings } from '../WellbeingCards';
-import { FromAryanCard } from '../GiftCards';
 import { BackupCard, UpdatesCard } from '../AppCards';
 
 export default function Me({ onToast }) {
@@ -47,7 +46,6 @@ export default function Me({ onToast }) {
         </Text>
       </Card>
 
-      <FromAryanCard onToast={onToast} />
       <AiSettings onToast={onToast} />
       <MoodColourCard />
 
