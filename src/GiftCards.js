@@ -12,10 +12,10 @@ import Avatar from './Avatar';
 const FLOAT_COLOURS = ['#C2456F', '#E06B8F', '#F2A7C0', '#7A1934', '#F7C6D4'];
 function Floaty({ kind, colour, size }) {
   return (
-    <Svg width={size} height={size} viewBox="-12 -12 24 24">
+    <Svg width={size} height={size} viewBox="-12 -12 24 24" style={{ backgroundColor: 'transparent', overflow: 'visible' }}>
       {kind === 'petal'
-        ? <Ellipse cx={0} cy={0} rx={6} ry={10} fill={colour} transform="rotate(30)" />
-        : <Path d="M0 -3 C0 -9 8 -9 8 -3 C8 2 0 6 0 8 C0 6 -8 2 -8 -3 C-8 -9 0 -9 0 -3 Z" fill={colour} />}
+        ? <Ellipse cx={0} cy={0} rx={6} ry={10} fill={colour} fillOpacity={0.9} transform="rotate(30)" />
+        : <Path d="M0 -3 C0 -9 8 -9 8 -3 C8 2 0 6 0 8 C0 6 -8 2 -8 -3 C-8 -9 0 -9 0 -3 Z" fill={colour} fillOpacity={0.9} />}
     </Svg>
   );
 }
@@ -78,10 +78,9 @@ export function GiftPopup({ gift, onDone }) {
       <View style={{ flex: 1, backgroundColor: 'rgba(58,34,41,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         {floats.map((f, i) => (
           <Animated.View key={i} style={{
-            position: 'absolute', left: f.x, top: height,
-            opacity: f.v.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 1, 1, 0] }),
+            position: 'absolute', left: f.x, top: height, backgroundColor: 'transparent',
             transform: [
-              { translateY: f.v.interpolate({ inputRange: [0, 1], outputRange: [0, -height - 60] }) },
+              { translateY: f.v.interpolate({ inputRange: [0, 1], outputRange: [20, -height - 80] }) },
               { translateX: f.v.interpolate({ inputRange: [0, 1], outputRange: [0, f.drift] }) },
             ],
           }}><Floaty kind={f.kind} colour={f.colour} size={f.size} /></Animated.View>
