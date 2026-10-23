@@ -6,7 +6,7 @@ import { useSetting } from './store';
 import { checkGifts, connect, disconnect, giftInfo, markSeen, registerBackground, unseenGifts } from './gifts';
 import { Btn, Card, H, Muted, s as ui } from './ui';
 import Svg, { Ellipse, Path } from 'react-native-svg';
-import Avatar from './Avatar';
+import GiftArt from './GiftArt';
 
 // Drawn hearts and petals that float up behind the card (no emoji).
 const FLOAT_COLOURS = ['#C2456F', '#E06B8F', '#F2A7C0', '#7A1934', '#F7C6D4'];
@@ -90,7 +90,7 @@ export function GiftPopup({ gift, onDone }) {
           borderWidth: 2, borderColor: C.accentSoft, transform: [{ scale: pop }], opacity: pop,
         }}>
           <Animated.View style={{ transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }, { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) }] }}>
-            <Avatar pose={gift.type in POSES ? gift.type : 'note'} size={170} />
+            <GiftArt type={gift.type in POSES ? gift.type : 'note'} size={130} />
           </Animated.View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink, textAlign: 'center' }}>{info.title}</Text>
           {gift.note ? <Text style={{ fontSize: 17, lineHeight: 25, color: C.ink, textAlign: 'center', fontStyle: 'italic' }}>"{gift.note}"</Text> : null}
@@ -143,8 +143,8 @@ export function FromAryanCard({ onToast }) {
         const info = giftInfo(g);
         return (
           <Pressable key={g.id} onPress={() => setAgain(g)} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: C.line }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: C.accentSoft, alignItems: 'center' }}>
-              <Avatar pose={g.type in POSES ? g.type : 'note'} size={52} />
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <GiftArt type={g.type in POSES ? g.type : 'note'} size={40} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: C.ink, fontWeight: '600' }} numberOfLines={1}>{g.note || info.title}</Text>
