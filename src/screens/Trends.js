@@ -73,6 +73,7 @@ export default function Trends() {
   const [range, setRange] = useState(7);
   const [days, setDays] = useState(null);
   const [steps, setSteps] = useState(null);
+  const [stepsState, setStepsState] = useState(null);
   const [well, setWell] = useState(null);
   const goals = useGoals();
   const weights = useWeights() || [];
@@ -84,7 +85,7 @@ export default function Trends() {
     const ds = lastNDays(range);
     loadDays(ds.map(dateKey)).then(list => setDays(ds.map((d, i) => ({ d, t: sumNutrients(list[i].entries.map(e => e.n)), water: list[i].water || 0, entries: list[i].entries }))));
     Promise.all([loadCheckins(), loadCycle()]).then(([ci, cyc]) => setWell({ ci, cyc }));
-    stepsStatus().then(st => (st === 'connected' ? stepsForDays(ds).then(setSteps) : setSteps(null)));
+    stepsStatus().then(st => { setStepsState(st); if (st === 'connected') stepsForDays(ds).then(setSteps); else setSteps(null); });
   }, [range, today]);
 
   if (!days || !goals) return null;
@@ -128,6 +129,8 @@ export default function Trends() {
             Average {r0(steps.filter(v => v > 0).reduce((a, v) => a + v, 0) / Math.max(1, steps.filter(v => v > 0).length)).toLocaleString('en-GB')} steps a day · dashed line: your {(goals.steps || 8000).toLocaleString('en-GB')} goal
           </Muted>
         </Card>
+      ) : stepsState === 'not-connected' || stepsState === 'needs-install' || stepsState === 'needs-update' ? (
+        <Card><H style={{ marginBottom: 4 }}>Steps</H><Muted>Connect steps on the Diary (Steps 👟 card) to see your daily steps here.</Muted></Card>
       ) : null}
 
       <Card>

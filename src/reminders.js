@@ -10,7 +10,7 @@ import { loadCheckins, loadSuppLog, loadSupps } from './wellbeing';
 // for today once something is logged in that meal.
 
 const CHANNEL = 'reminders';
-const DAYS_AHEAD = 14;
+const DAYS_AHEAD = 10; // keeps the number of planned notifications well under Android's limit
 
 export const REMINDERS = [
   { key: 'Breakfast', label: 'Breakfast', hour: 9, minute: 30,
@@ -27,10 +27,32 @@ export const REMINDERS = [
     title: 'Anything to log? 🍽️', body: "Anything not logged yet? No pressure, every bit counts." },
 ];
 
+// "Every 2 hours" food nudge: its own setting with a start and end time (added later; older saved
+// settings pick up this default).
+export const EVERY2H = { key: 'Every2h', label: 'Every 2 hours', on: true, hour: 10, minute: 0, endHour: 20 };
+const NUDGES = [
+  ['Quick food check 🌸', "Had anything since last time? Pop it in your diary."],
+  ['Little nudge 🍓', "Snack, drink or meal? A ten-second log keeps today easy."],
+  ['Food diary time 📝', "Anything to add from the last couple of hours?"],
+  ['Hey Gia 💗', "Just checking: anything you've eaten that isn't logged yet?"],
+];
+
 export const DEFAULT_SETTINGS = {
   enabled: false,
-  items: Object.fromEntries(REMINDERS.map(r => [r.key, { on: true, hour: r.hour, minute: r.minute }])),
+  items: {
+    ...Object.fromEntries(REMINDERS.map(r => [r.key, { on: true, hour: r.hour, minute: r.minute }])),
+    [EVERY2H.key]: { on: EVERY2H.on, hour: EVERY2H.hour, minute: EVERY2H.minute, endHour: EVERY2H.endHour },
+  },
 };
+
+// The 2-hourly slots for a day, as minutes after midnight.
+export function everyTwoHourSlots(it) {
+  const out = [];
+  const end = (it.endHour ?? EVERY2H.endHour) * 60;
+  for (let t = it.hour * 60 + (it.minute || 0); t <= end; t += 120) out.push(t);
+  return out;
+}
+const toMinutes = hm => { const m = /^(\d{1,2}):(\d{2})/.exec(hm || ''); return m ? +m[1] * 60 + +m[2] : null; };
 
 if (Platform.OS !== 'web') Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -105,6 +127,25 @@ export async function reschedule(settingsArg) {
             content: { title: r.title, body: r.body },
             trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
           });
+        }
+
+        // Every 2 hours: skipped when food was logged in the 2 hours before, or when a meal reminder
+        // is already due within 45 minutes (so she never gets two nudges at once).
+        const ev = settings.items[EVERY2H.key];
+        if (ev && ev.on) {
+          const mealTimes = ['Breakfast', 'Lunch', 'Dinner', 'Evening'].map(k => settings.items[k]).filter(x => x && x.on).map(x => x.hour * 60 + x.minute);
+          const eaten = d === 0 ? today.entries.map(e => toMinutes(e.time)).filter(x => x != null) : [];
+          for (const [i, t] of everyTwoHourSlots(ev).entries()) {
+            const when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, Math.floor(t / 60), t % 60, 0);
+            if (when <= now) continue;
+            if (mealTimes.some(m => Math.abs(m - t) < 45)) continue;
+            if (eaten.some(m => m > t - 120 && m <= t)) continue;
+            const [title, body] = NUDGES[(i + d) % NUDGES.length];
+            await Notifications.scheduleNotificationAsync({
+              content: { title, body },
+              trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: CHANNEL },
+            });
+          }
         }
       }
     }

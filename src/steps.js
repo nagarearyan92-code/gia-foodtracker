@@ -52,27 +52,42 @@ export function openHealthConnect() {
   if (lib) lib.openHealthConnectSettings();
 }
 
-// Total steps for each date (array of Date at noon). Returns array of numbers (null if unavailable).
+// Total steps for each date (array of Dates). Returns an array of numbers (null if unknown).
+// Each day is read on its own, so one failed day doesn't hide the rest, and every total read is
+// saved (stepsLog), so past days still show if Health Connect can't return them later.
+const keyOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export async function stepsForDays(dates) {
+  const saved = await readSetting('stepsLog', {});
   const lib = hc();
-  if (!lib) return dates.map(() => null);
-  try {
-    await lib.initialize();
-    const out = [];
-    for (const d of dates) {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-      const end = new Date(start.getTime() + 864e5);
-      if (start > new Date()) { out.push(0); continue; }
+  if (!lib) return dates.map(d => saved[keyOf(d)] ?? null);
+  try { await lib.initialize(); } catch (e) { return dates.map(d => saved[keyOf(d)] ?? null); }
+  const now = new Date();
+  const out = [];
+  let changed = false;
+  for (const d of dates) {
+    const k = keyOf(d);
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+    const end = new Date(start.getTime() + 864e5);
+    if (start > now) { out.push(null); continue; }
+    try {
       const res = await lib.aggregateRecord({
         recordType: 'Steps',
-        timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: (end > new Date() ? new Date() : end).toISOString() },
+        timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: (end > now ? now : end).toISOString() },
       });
-      out.push(res && typeof res.COUNT_TOTAL === 'number' ? res.COUNT_TOTAL : 0);
+      const n = res && typeof res.COUNT_TOTAL === 'number' ? res.COUNT_TOTAL : 0;
+      // Keep the higher number: Health Connect sometimes returns less for older days than it did on the day.
+      const best = Math.max(n, saved[k] || 0);
+      if (best !== saved[k]) { saved[k] = best; changed = true; }
+      out.push(best);
+    } catch (e) {
+      out.push(saved[k] ?? null);
     }
-    return out;
-  } catch (e) {
-    return dates.map(() => null);
   }
+  if (changed) {
+    const keep = Object.keys(saved).sort().slice(-400); // a bit over a year
+    await writeSetting('stepsLog', Object.fromEntries(keep.map(k => [k, saved[k]])));
+  }
+  return out;
 }
 
 export async function wasConnected() {

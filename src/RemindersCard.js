@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Platform, Pressable, Switch, Text, View } from 'react-native';
 import { C } from './theme';
-import { REMINDERS, ensurePermission, fmtTime, getSettings, saveSettings } from './reminders';
+import { EVERY2H, REMINDERS, ensurePermission, fmtTime, getSettings, saveSettings } from './reminders';
 import { readSetting, writeSetting } from './store';
 import { Btn, Card, H, Muted } from './ui';
 
@@ -58,7 +58,7 @@ export default function RemindersCard({ onToast }) {
         <Switch value={s.enabled} onValueChange={toggleAll} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
       </View>
       <Muted>
-        Gentle nudges for meals, supplements and an evening check-in. Anything you've already done that day is skipped.
+        Gentle nudges for meals, supplements, an evening check-in and every couple of hours. Anything you've already done that day is skipped.
       </Muted>
       {s.enabled && REMINDERS.map(r => {
         const it = s.items[r.key];
@@ -73,9 +73,41 @@ export default function RemindersCard({ onToast }) {
           </View>
         );
       })}
+      {s.enabled ? <EveryTwoHours s={s} update={update} /> : null}
     </Card>
   );
 }
+
+function EveryTwoHours({ s, update }) {
+  const it = { ...EVERY2H, ...(s.items[EVERY2H.key] || {}) };
+  const set = patch => update({ ...s, items: { ...s.items, [EVERY2H.key]: { on: it.on, hour: it.hour, minute: it.minute, endHour: it.endHour, ...patch } } });
+  const from = d => { const h = Math.min(Math.max(6, it.hour + d), it.endHour - 2); set({ hour: h, minute: 0 }); };
+  const to = d => set({ endHour: Math.min(Math.max(it.hour + 2, it.endHour + d), 23) });
+  return (
+    <View style={{ gap: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: C.line }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Switch value={it.on} onValueChange={v => set({ on: v })} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: it.on ? C.ink : C.muted, fontWeight: '600' }}>Every 2 hours</Text>
+          <Muted>A gentle "anything to log?" nudge. Skipped if you've logged food in the last 2 hours.</Muted>
+        </View>
+      </View>
+      {it.on ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+          <Muted>From</Muted>
+          <Pressable onPress={() => from(-1)} hitSlop={8} style={timeBtn}><Text style={timeTxt}>−</Text></Pressable>
+          <Text style={hm}>{fmtTime(it.hour, it.minute)}</Text>
+          <Pressable onPress={() => from(1)} hitSlop={8} style={timeBtn}><Text style={timeTxt}>+</Text></Pressable>
+          <Muted>to</Muted>
+          <Pressable onPress={() => to(-1)} hitSlop={8} style={timeBtn}><Text style={timeTxt}>−</Text></Pressable>
+          <Text style={hm}>{fmtTime(it.endHour, 0)}</Text>
+          <Pressable onPress={() => to(1)} hitSlop={8} style={timeBtn}><Text style={timeTxt}>+</Text></Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+const hm = { width: 48, textAlign: 'center', color: C.ink, fontVariant: ['tabular-nums'], fontWeight: '700' };
 
 // One-time invitation shown on the Diary until she turns reminders on or dismisses it.
 export function RemindersInvite({ onToast }) {

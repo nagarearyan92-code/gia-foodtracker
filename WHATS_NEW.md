@@ -1,6 +1,3 @@
 New for you, Gia 💗
-- A fresh look: baby pink now has a burgundy partner.
-- Mood colours 🎨: after your check-in, the app changes colour to match how you feel. Sunny gold on great days, calm lavender or soft blue on harder ones. You can switch it off in the Me tab.
-- Water is easier: small glass, glass or bottle buttons, any other amount, and Undo.
-- Logged the wrong amount? Tap the food in your diary and change it. Calories and protein update by themselves.
-- Two recipes are now soy-free: Rajma & paneer crispy wrap and Marry me paneer.
+- Steps 👟 now show your last 7 days right on the Diary, so you can see how your week is going. Trends shows the full 7 or 30 days.
+- A gentle "anything to log?" nudge every 2 hours (10 am to 8 pm). It skips itself if you've logged food recently. Change the times or switch it off in Me → Reminders. (Reminders need to be on there for it to work.)

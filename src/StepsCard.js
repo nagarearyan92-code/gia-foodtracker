@@ -10,13 +10,16 @@ export default function StepsCard({ date }) {
   const goals = useGoals();
   const [status, setStatus] = useState(null);
   const [steps, setSteps] = useState(null);
+  const [week, setWeek] = useState(null); // the 7 days ending on this day
 
   const refresh = useCallback(async () => {
     const st = await stepsStatus();
     setStatus(st);
     if (st === 'connected') {
-      const [n] = await stepsForDays([date]);
-      setSteps(n);
+      const days = [6, 5, 4, 3, 2, 1, 0].map(i => new Date(date.getFullYear(), date.getMonth(), date.getDate() - i, 12));
+      const list = await stepsForDays(days);
+      setSteps(list[6]);
+      setWeek(days.map((d, i) => ({ d, n: list[i] })));
     }
   }, [date]);
 
@@ -70,6 +73,39 @@ export default function StepsCard({ date }) {
         <View style={{ height: '100%', width: pct + '%', backgroundColor: C.good }} />
       </View>
       {n >= goal ? <Muted style={{ marginTop: 8 }}>Step goal reached 🎉</Muted> : null}
+      {week ? <WeekBars week={week} goal={goal} /> : null}
     </Card>
+  );
+}
+
+// Last 7 days at a glance, today (or the chosen day) on the right.
+function WeekBars({ week, goal }) {
+  const known = week.filter(x => x.n != null && x.n > 0);
+  const max = Math.max(goal, ...week.map(x => x.n || 0), 1);
+  const avg = known.length ? Math.round(known.reduce((a, x) => a + x.n, 0) / known.length) : 0;
+  const short = n => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n));
+  return (
+    <View style={{ marginTop: 12, gap: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 74 }}>
+        {week.map((x, i) => {
+          const h = x.n ? Math.max(4, (x.n / max) * 52) : 4;
+          const last = i === week.length - 1;
+          return (
+            <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+              <Text style={{ fontSize: 9, color: C.muted, fontVariant: ['tabular-nums'] }}>{x.n ? short(x.n) : x.n === 0 ? '0' : '–'}</Text>
+              <View style={{ width: '70%', height: h, borderRadius: 4, backgroundColor: x.n >= goal ? C.good : x.n ? (last ? C.good : '#9CCFB0') : C.sunk }} />
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {week.map((x, i) => (
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, color: i === week.length - 1 ? C.ink : C.muted, fontWeight: i === week.length - 1 ? '800' : '600' }}>
+            {x.d.toLocaleDateString('en-GB', { weekday: 'narrow' })}
+          </Text>
+        ))}
+      </View>
+      <Muted>{avg ? `Last 7 days: about ${avg.toLocaleString('en-GB')} steps a day. More in Trends.` : 'Your last 7 days will fill in here.'}</Muted>
+    </View>
   );
 }
