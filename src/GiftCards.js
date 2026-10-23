@@ -5,7 +5,22 @@ import { C } from './theme';
 import { useSetting } from './store';
 import { checkGifts, connect, disconnect, giftInfo, markSeen, registerBackground, unseenGifts } from './gifts';
 import { Btn, Card, H, Muted, s as ui } from './ui';
+import Svg, { Ellipse, Path } from 'react-native-svg';
+import Avatar from './Avatar';
 
+// Drawn hearts and petals that float up behind the card (no emoji).
+const FLOAT_COLOURS = ['#C2456F', '#E06B8F', '#F2A7C0', '#7A1934', '#F7C6D4'];
+function Floaty({ kind, colour, size }) {
+  return (
+    <Svg width={size} height={size} viewBox="-12 -12 24 24">
+      {kind === 'petal'
+        ? <Ellipse cx={0} cy={0} rx={6} ry={10} fill={colour} transform="rotate(30)" />
+        : <Path d="M0 -3 C0 -9 8 -9 8 -3 C8 2 0 6 0 8 C0 6 -8 2 -8 -3 C-8 -9 0 -9 0 -3 Z" fill={colour} />}
+    </Svg>
+  );
+}
+
+const POSES = { flowers: 1, kisses: 1, cuddles: 1, chocolate: 1, treat: 1, thinking: 1, note: 1 };
 const when = g => {
   const d = new Date(g.sentAt || Date.now());
   const today = new Date().toDateString() === d.toDateString();
@@ -38,38 +53,46 @@ export function GiftPopup({ gift, onDone }) {
   const info = giftInfo(gift);
   const { width, height } = useWindowDimensions();
   const pop = useRef(new Animated.Value(0)).current;
+  const bob = useRef(new Animated.Value(0)).current;
   const floats = useRef(Array.from({ length: 18 }, (_, i) => ({
-    v: new Animated.Value(0), x: Math.random() * (width - 40), delay: Math.random() * 1600, size: 22 + Math.random() * 18,
-    e: info.floats[i % info.floats.length], drift: (Math.random() - 0.5) * 60,
+    v: new Animated.Value(0), x: Math.random() * (width - 40), delay: Math.random() * 1600, size: 14 + Math.random() * 16,
+    kind: gift.type === 'flowers' && i % 2 ? 'petal' : 'heart', colour: FLOAT_COLOURS[i % FLOAT_COLOURS.length], drift: (Math.random() - 0.5) * 60,
   }))).current;
   useEffect(() => {
     Animated.spring(pop, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }).start();
+    const b = Animated.loop(Animated.sequence([
+      Animated.timing(bob, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(bob, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    b.start();
     const loops = floats.map(f => Animated.loop(Animated.sequence([
       Animated.delay(f.delay),
       Animated.timing(f.v, { toValue: 1, duration: 3600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       Animated.timing(f.v, { toValue: 0, duration: 0, useNativeDriver: true }),
     ])));
     loops.forEach(l => l.start());
-    return () => loops.forEach(l => l.stop());
+    return () => { b.stop(); loops.forEach(l => l.stop()); };
   }, []); // eslint-disable-line
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDone}>
       <View style={{ flex: 1, backgroundColor: 'rgba(58,34,41,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         {floats.map((f, i) => (
-          <Animated.Text key={i} style={{
-            position: 'absolute', left: f.x, top: height, fontSize: f.size,
+          <Animated.View key={i} style={{
+            position: 'absolute', left: f.x, top: height,
             opacity: f.v.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 1, 1, 0] }),
             transform: [
               { translateY: f.v.interpolate({ inputRange: [0, 1], outputRange: [0, -height - 60] }) },
               { translateX: f.v.interpolate({ inputRange: [0, 1], outputRange: [0, f.drift] }) },
             ],
-          }}>{f.e}</Animated.Text>
+          }}><Floaty kind={f.kind} colour={f.colour} size={f.size} /></Animated.View>
         ))}
         <Animated.View style={{
           width: '100%', maxWidth: 380, backgroundColor: C.surface, borderRadius: 24, padding: 22, alignItems: 'center', gap: 10,
           borderWidth: 2, borderColor: C.accentSoft, transform: [{ scale: pop }], opacity: pop,
         }}>
-          <Text style={{ fontSize: 72 }}>{info.emoji}</Text>
+          <Animated.View style={{ transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) }, { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) }] }}>
+            <Avatar pose={gift.type in POSES ? gift.type : 'note'} size={170} />
+          </Animated.View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink, textAlign: 'center' }}>{info.title}</Text>
           {gift.note ? <Text style={{ fontSize: 17, lineHeight: 25, color: C.ink, textAlign: 'center', fontStyle: 'italic' }}>"{gift.note}"</Text> : null}
           <Muted>From Aryan 💗 · {when(gift)}</Muted>
@@ -121,7 +144,9 @@ export function FromAryanCard({ onToast }) {
         const info = giftInfo(g);
         return (
           <Pressable key={g.id} onPress={() => setAgain(g)} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: C.line }}>
-            <Text style={{ fontSize: 26 }}>{info.emoji}</Text>
+            <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden', backgroundColor: C.accentSoft, alignItems: 'center' }}>
+              <Avatar pose={g.type in POSES ? g.type : 'note'} size={52} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: C.ink, fontWeight: '600' }} numberOfLines={1}>{g.note || info.title}</Text>
               <Muted>{when(g)}</Muted>

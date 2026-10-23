@@ -98,7 +98,7 @@ async function notifyNew() {
   for (const g of fresh.filter(x => !notified.has(x.id))) {
     const info = giftInfo(g);
     await Notifications.scheduleNotificationAsync({
-      content: { title: `${info.title} ${info.emoji}`, body: g.note ? g.note.slice(0, 140) : 'Open Gia Mia to see it 💗', data: { gift: g.id } },
+      content: { title: `${info.title} 💗`, body: g.note ? g.note.slice(0, 140) : 'Open Gia Mia to see it 💗', data: { gift: g.id } },
       trigger: null,
     });
     notified.add(g.id);
