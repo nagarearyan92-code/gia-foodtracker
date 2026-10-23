@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { C, MEALS, MICROS } from './theme';
-import { addEntry, pushRecent, saveCustomFood, scale, uid } from './store';
+import { addEntry, pushRecent, saveCustomFood, scale, toggleFavourite, uid, useFavourites } from './store';
 import { Btn, Card, Chip, Field, MacroStrip, Muted, r1, s } from './ui';
 import TimeRow from './TimeRow';
 import { defaultTime } from './times';
@@ -52,7 +52,10 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
     <View style={{ gap: 14 }}>
       <View>
         {food.brand ? <Text style={{ color: C.accent, fontWeight: '700', fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{food.brand}</Text> : null}
-        <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink }}>{food.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <Text style={{ flex: 1, fontSize: 22, fontWeight: '800', color: C.ink }}>{food.name}</Text>
+          <FavStar food={food} />
+        </View>
         <Muted>
           {isRecipe
             ? `Serves ${food.serves} · ${food.time}`
@@ -124,5 +127,18 @@ export default function FoodDetail({ food, meal: initialMeal, day, onAdded, onEd
         </Card>
       )}
     </View>
+  );
+}
+
+function FavStar({ food }) {
+  const favs = useFavourites();
+  if (!favs) return null;
+  const on = favs.some(f => f.id === food.id);
+  const save = { ...food, unsaved: undefined };
+  return (
+    <Pressable onPress={() => toggleFavourite(save)} hitSlop={10} accessibilityLabel={on ? 'Remove from favourites' : 'Add to favourites'}
+      style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: on ? C.accent : C.line, backgroundColor: on ? C.accentSoft : C.surface }}>
+      <Text style={{ color: on ? C.accent : C.muted, fontWeight: '700' }}>{on ? '★ Favourite' : '☆ Favourite'}</Text>
+    </Pressable>
   );
 }

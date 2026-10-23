@@ -106,8 +106,9 @@ export async function askBuddy(thread) {
     if (last && last.role === m.role) last.content += '\n\n' + t;
     else msgs.push({ role: m.role, content: t });
   });
-  while (msgs.length && msgs[0].role !== 'user') msgs.shift();
-  while (msgs.length > 20) msgs.splice(0, 2);
+  // She may be replying to a message Miss Curious Bae sent first (weekly recap, follow-up): keep it.
+  if (msgs.length && msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: '(You messaged me first.)' });
+  while (msgs.length > 20) { msgs.splice(0, 2); if (msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: '(Earlier messages trimmed.)' }); }
   if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw { code: 'error', message: 'Nothing to reply to' };
   msgs[0] = { role: 'user', content: `[Snapshot of my day, for context]\n${ctx}\n\n${msgs[0].content}` };
   const body = { model: MODEL, max_tokens: 2000, output_config: { effort: 'low' }, system: BUDDY_SYSTEM, messages: msgs };
@@ -116,6 +117,18 @@ export async function askBuddy(thread) {
   if (!text && data.stop_reason !== 'refusal') { data = await post(cleanKey(apiKey), { ...body, max_tokens: 4000 }); text = replyText(data); }
   if (!text) throw { code: 'empty' };
   return { text, source: 'ai' };
+}
+
+// A message Miss Curious Bae starts herself (see outreach.js). Returns text or throws { code }.
+export async function askOutreach(instruction) {
+  const apiKey = await getKey();
+  if (!apiKey) throw { code: 'no-key' };
+  const body = { model: MODEL, max_tokens: 2000, output_config: { effort: 'low' }, system: BUDDY_SYSTEM, messages: [{ role: 'user', content: instruction }] };
+  let data = await post(cleanKey(apiKey), body);
+  let text = replyText(data);
+  if (!text && data.stop_reason !== 'refusal') { data = await post(cleanKey(apiKey), { ...body, max_tokens: 4000 }); text = replyText(data); }
+  if (!text) throw { code: 'empty' };
+  return text;
 }
 
 const fmtTime = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });

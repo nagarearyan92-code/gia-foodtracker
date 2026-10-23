@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { dateKey, loadDays } from './store';
 import { addDays, loadCycle, predict } from './cycle';
 import { loadCheckins, loadSuppLog, loadSupps } from './wellbeing';
+import { outreachSchedule } from './outreach';
 
 // Gentle, local food-logging reminders. Nothing leaves the phone.
 // Smart part: each reminder is scheduled per day, and a meal's reminder is skipped
@@ -100,6 +101,9 @@ export async function reschedule(settingsArg) {
     await Notifications.cancelAllScheduledNotificationsAsync();
     const perm = await Notifications.getPermissionsAsync();
     if (!perm.granted) return;
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Food reminders', importance: Notifications.AndroidImportance.DEFAULT, lightColor: '#C2456F' });
+    }
     const now = new Date();
 
     if (settings.enabled) {
@@ -148,6 +152,15 @@ export async function reschedule(settingsArg) {
           }
         }
       }
+    }
+
+    // Miss Curious Bae reaching out (Sunday recap, low-day follow-up). Separate from the reminders
+    // switch: she turns these on or off in Me → Miss Curious Bae.
+    for (const o of await outreachSchedule(now, DAYS_AHEAD)) {
+      await Notifications.scheduleNotificationAsync({
+        content: { title: o.title, body: o.body, data: o.data },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: o.when, channelId: CHANNEL },
+      });
     }
 
     // Period heads-up, 2 days before it's due.

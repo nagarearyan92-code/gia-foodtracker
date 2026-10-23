@@ -13,12 +13,19 @@ import { SafetyCard } from './CheckIn';
 import { Muted } from './ui';
 
 const SIZE = 58;
+
+// Lets other parts of the app open the chat (e.g. tapping a Miss Curious Bae notification).
+const openers = new Set();
+export function openBuddy() { openers.forEach(fn => fn()); }
 const IDEAS = ['What should I have for dinner?', 'High-protein snack ideas', 'I\'m feeling really tired today', 'Something sweet but healthy?'];
 
 export default function Buddy() {
   const { width, height } = useWindowDimensions();
   const hidden = useSetting('bubbleHidden', false);
   const [open, setOpen] = useState(false);
+  const unread = useSetting('buddyUnread', false);
+  useEffect(() => { const fn = () => setOpen(true); openers.add(fn); return () => openers.delete(fn); }, []);
+  useEffect(() => { if (open && unread) writeSetting('buddyUnread', false); }, [open, unread]);
   const pos = useRef(new Animated.ValueXY({ x: width - SIZE - 14, y: height - SIZE - 170 })).current;
   const start = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
@@ -47,7 +54,13 @@ export default function Buddy() {
   const winRef = useRef({ width, height });
   winRef.current = { width, height };
 
-  if (hidden === null || hidden) return null;
+  if (hidden === null) return null;
+  const chat = (
+    <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)} presentationStyle="fullScreen">
+      {open ? <BuddyChat onClose={() => setOpen(false)} /> : null}
+    </Modal>
+  );
+  if (hidden) return chat; // no bubble, but the chat can still open from a notification
   return (
     <>
       <Animated.View {...pan.panHandlers} accessibilityRole="button" accessibilityLabel="Chat with Miss Curious Bae"
@@ -55,10 +68,9 @@ export default function Buddy() {
           backgroundColor: C.accent2, alignItems: 'center', justifyContent: 'center', elevation: 8,
           shadowColor: '#7A1E3E', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, borderWidth: 3, borderColor: C.accent2Soft }}>
         <Text style={{ fontSize: 28 }}>🌸</Text>
+        {unread ? <View style={{ position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.accent, borderWidth: 2, borderColor: '#fff' }} /> : null}
       </Animated.View>
-      <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)} presentationStyle="fullScreen">
-        {open ? <BuddyChat onClose={() => setOpen(false)} /> : null}
-      </Modal>
+      {chat}
     </>
   );
 }
@@ -139,6 +151,7 @@ function BuddyChat({ onClose }) {
           ) : null}
           {thread.map((m, i) => (
             <View key={i} style={[bubble, m.role === 'user' ? mine : theirs]}>
+              {m.from ? <Text style={{ fontSize: 11, fontWeight: '800', color: C.accent, marginBottom: 4 }}>{m.from === 'recap' ? '💌 SUNDAY RECAP' : '🌸 CHECKING IN'}</Text> : null}
               <Text style={{ color: m.role === 'user' ? '#fff' : C.ink, fontSize: 15, lineHeight: 22 }}>{m.text}</Text>
             </View>
           ))}

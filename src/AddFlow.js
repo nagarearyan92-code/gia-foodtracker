@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { C } from './theme';
-import { useCustomFoods, useRecent } from './store';
+import { useCustomFoods, useFavourites, useRecent } from './store';
 import { BUILT_IN, RECIPE_FOODS, searchFoods } from './catalog';
 import FoodDetail from './FoodDetail';
 import ProductForm from './ProductForm';
@@ -19,6 +19,7 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
   const [tab, setTab] = useState('foods');
   const custom = useCustomFoods() || [];
   const recent = useRecent() || [];
+  const favs = useFavourites() || [];
   const [online, setOnline] = useState({ q: '', state: 'idle', list: [] }); // idle | loading | done | error
 
   useEffect(() => {
@@ -29,8 +30,11 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
     if (tab === 'recipes') return searchFoods(RECIPE_FOODS, q);
     if (tab === 'mine') return searchFoods(custom, q);
     if (tab === 'recent') return searchFoods(recent, q);
+    if (tab === 'favs') return searchFoods(favs.map(current), q);
     return searchFoods([...custom, ...BUILT_IN], q);
-  }, [tab, q, custom, recent]);
+  }, [tab, q, custom, recent, favs]);
+  // Use today's version of a saved favourite (so built-in foods and recipes pick up any data fixes).
+  function current(f) { return BUILT_IN.find(x => x.id === f.id) || RECIPE_FOODS.find(x => x.id === f.id) || custom.find(x => x.id === f.id) || f; }
 
   const open = f => { setFood(f); setView('detail'); };
 
@@ -134,7 +138,7 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
           style={[s.input, { fontSize: 16 }]}
         />
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-          {[['foods', 'All foods'], ['recent', 'Recent'], ['mine', 'My foods'], ['recipes', 'Recipes']].map(([k, l]) => (
+          {[['foods', 'All foods'], ['favs', '★ Favourites'], ['recent', 'Recent'], ['mine', 'My foods'], ['recipes', 'Recipes']].map(([k, l]) => (
             <Chip key={k} label={l} active={tab === k} onPress={() => setTab(k)} />
           ))}
         </View>
@@ -144,7 +148,7 @@ export default function AddFlow({ visible, onClose, day, meal, start = 'search',
         keyExtractor={f => f.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        ListEmptyComponent={showOnline ? null : <Muted style={{ textAlign: 'center', marginTop: 30 }}>{tab === 'mine' ? 'Products you add or scan will appear here.' : tab === 'recent' ? 'Foods you log will appear here.' : 'Nothing matches. Try scanning the barcode or adding a new product.'}</Muted>}
+        ListEmptyComponent={showOnline ? null : <Muted style={{ textAlign: 'center', marginTop: 30 }}>{tab === 'favs' ? 'Tap ☆ on any food or recipe to keep it here for quick logging.' : tab === 'mine' ? 'Products you add or scan will appear here.' : tab === 'recent' ? 'Foods you log will appear here.' : 'Nothing matches. Try scanning the barcode or adding a new product.'}</Muted>}
         ListFooterComponent={OnlineFooter}
         renderItem={({ item: f }) => <FoodRow f={f} onPress={() => open(f)} />}
       />

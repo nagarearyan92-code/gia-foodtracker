@@ -5,6 +5,8 @@ import { dateKey, useSetting, writeSetting } from './store';
 import { DEFAULT_SUPPS, MOODS, SUPP_NUTRIENTS, normalizeSupps, saveSupps, setSuppTime, toggleSupp } from './wellbeing';
 import TimeRow from './TimeRow';
 import { MOOD_COLOURS } from './moodTheme';
+import { OUTREACH_DEFAULTS } from './outreach';
+import { ensurePermission, reschedule } from './reminders';
 import { averageHM, fmtHM, nowHM } from './times';
 import { KEY_PROBLEM, cleanKey, getKey, removeKey, setKey, testKey } from './ai';
 import { Btn, Card, Chip, Field, H, Muted, Sheet, s as ui } from './ui';
@@ -244,7 +246,35 @@ export function AiSettings({ onToast }) {
         </>
       )}
       <BubbleSwitch />
+      <OutreachSwitches />
     </Card>
+  );
+}
+
+// Messages Miss Curious Bae sends first.
+function OutreachSwitches() {
+  const raw = useSetting('baeOutreach', {});
+  if (raw === null) return null;
+  const set = { ...OUTREACH_DEFAULTS, ...raw };
+  const flip = async (k, v) => {
+    await writeSetting('baeOutreach', { ...set, [k]: v });
+    if (v) await ensurePermission();
+    reschedule();
+  };
+  const row = (k, title, note) => (
+    <View key={k} style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10, gap: 10 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: C.ink, fontWeight: '600' }}>{title}</Text>
+        <Muted>{note}</Muted>
+      </View>
+      <Switch value={!!set[k]} onValueChange={v => flip(k, v)} trackColor={{ true: C.accent, false: C.line }} thumbColor="#fff" />
+    </View>
+  );
+  return (
+    <>
+      {row('recap', 'Sunday recap 💌', 'On Sunday evenings she sends a little look back at your week.')}
+      {row('followUp', 'Morning check after a hard day', 'After a Low or Awful check-in, she asks how you are the next morning.')}
+    </>
   );
 }
 

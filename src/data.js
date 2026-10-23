@@ -123,9 +123,50 @@ const ROWS = [
 
 export const HIDDEN = new Set(["tofu","soysauce","chilli_oil","gochujang","soymilk"]);
 
+// Typical vitamins and minerals per 100 g (UK/US food composition tables), so the Diary's
+// vitamins bars count everyday foods too. Columns: iron mg, calcium mg, B12 µg, vitamin D µg, zinc mg.
+const MICRO_ROWS = {
+  ktc_kala: [1.5, 45, 0, 0, 1.1], ktc_chick: [1.3, 43, 0, 0, 1.0], ktc_rajma: [1.5, 35, 0, 0, 0.7], ktc_blackeye: [1.0, 20, 0, 0, 0.8],
+  ktc_butter: [1.2, 18, 0, 0, 0.6], blackbeans: [1.8, 30, 0, 0, 0.7], lentils: [3.0, 20, 0, 0, 1.2], redlentil: [7.5, 48, 0, 0, 3.3],
+  toor: [5.2, 130, 0, 0, 2.8], moong: [6.7, 130, 0, 0, 2.7], chanadal: [5.0, 55, 0, 0, 3.0], urad: [7.6, 138, 0, 0, 3.4],
+  urad_whole: [7.6, 138, 0, 0, 3.4], rajma_dry: [8.2, 83, 0, 0, 2.8], hummus: [2.0, 38, 0, 0, 1.6], besan: [4.9, 45, 0, 0, 2.8],
+  kabuli_dry: [6.2, 105, 0, 0, 2.8], kala_dry: [6.0, 150, 0, 0, 2.8],
+  arla_lf: [0.1, 80, 0.4, 0, 0.4], arla_nat: [0.1, 80, 0.4, 0, 0.4], daisy: [0.1, 80, 0.4, 0, 0.4], phil_pro: [0.1, 100, 0.5, 0, 0.5],
+  eatlean: [0.3, 900, 1.2, 0, 4.0], tesco_paneer: [0.3, 400, 0.6, 0, 2.5], paneer: [0.3, 480, 0.6, 0.1, 2.8], cheddar: [0.3, 720, 1.1, 0.3, 3.6],
+  mozz: [0.4, 350, 1.0, 0.2, 2.8], phil_light: [0.1, 110, 0.4, 0, 0.5],
+  milb_straw: [0.1, 120, 0.4, 0, 0.6], milb_van: [0.1, 100, 0.5, 0, 0.5], milb_choc: [0.4, 110, 0.3, 0, 0.5], milb_drink: [0.1, 120, 0.3, 0, 0.4],
+  greek: [0.1, 110, 0.5, 0, 0.5], milk: [0.03, 124, 0.9, 0, 0.4], skim: [0.03, 125, 0.9, 0, 0.4], grahams: [0.03, 120, 0.9, 0, 0.4],
+  yeo: [0.1, 150, 0.2, 0, 0.6], milb_greek: [0.1, 130, 0.3, 0, 0.5], skyr: [0.1, 150, 0.5, 0, 0.6], doublecream: [0.1, 50, 0.2, 0.3, 0.2],
+  butter: [0.2, 15, 0.2, 0.9, 0.1], peaprotein: [15, 100, 0, 0, 5.0],
+  oats: [4.2, 50, 0, 0, 3.6], quinoa: [1.5, 17, 0, 0, 1.1], bread: [2.4, 106, 0, 0, 1.6], warb_seed: [2.5, 150, 0, 0, 1.6],
+  hovis_seed: [2.8, 150, 0, 0, 1.8], wwpasta: [3.6, 40, 0, 0, 3.0], mission_wrap: [2.5, 80, 0, 0, 1.0], laila: [0.8, 10, 0, 0, 1.1],
+  bio_seedy: [3.5, 60, 0, 0, 2.5], bio_low: [3.0, 50, 0, 0, 2.0], cornflakes: [8.0, 5, 2.1, 4.2, 0.2], brownrice: [0.6, 10, 0, 0, 1.0],
+  sourdough: [1.6, 100, 0, 0, 0.8],
+  almonds: [3.7, 269, 0, 0, 3.1], cashew: [6.7, 37, 0, 0, 5.8], makhana: [3.5, 160, 0, 0, 1.0], pb: [1.9, 49, 0, 0, 2.8],
+  pumpkin: [8.8, 46, 0, 0, 7.8], hemp: [8.0, 70, 0, 0, 9.9], chia: [7.7, 631, 0, 0, 4.6], flax: [5.7, 255, 0, 0, 4.3],
+  almondbutter: [3.5, 347, 0, 0, 3.3], peanuts: [2.3, 54, 0, 0, 3.3], sesame: [14.6, 975, 0, 0, 7.8],
+  peas: [1.5, 25, 0, 0, 1.0], ktc_tom: [0.6, 30, 0, 0, 0.2], sweetcorn: [0.5, 3, 0, 0, 0.6], fr_berries: [0.7, 20, 0, 0, 0.2],
+  fr_veg: [0.8, 30, 0, 0, 0.4], tompaste: [3.0, 36, 0, 0, 0.7], sundried: [2.7, 47, 0, 0, 0.8], roastpep: [0.4, 8, 0, 0, 0.2],
+  broccoli: [0.7, 47, 0, 0, 0.4], spinach: [2.7, 99, 0, 0, 0.5], mushroom: [0.5, 3, 0, 0.2, 0.5], sweetpot: [0.7, 38, 0, 0, 0.3],
+  onion: [0.2, 23, 0, 0, 0.2], springonion: [1.5, 72, 0, 0, 0.4], tomato: [0.3, 10, 0, 0, 0.2], pepper: [0.4, 7, 0, 0, 0.2],
+  potato: [0.8, 12, 0, 0, 0.3], apple: [0.1, 6, 0, 0, 0], banana: [0.3, 5, 0, 0, 0.2], raspberry: [0.7, 25, 0, 0, 0.4],
+  strawberry: [0.4, 16, 0, 0, 0.1], avocado: [0.6, 12, 0, 0, 0.6], okra: [0.6, 82, 0, 0, 0.6], cucumber: [0.3, 16, 0, 0, 0.2],
+  carrot: [0.3, 33, 0, 0, 0.2], jalapeno: [0.3, 12, 0, 0, 0.1], ginger: [0.6, 16, 0, 0, 0.3], greenchilli: [1.0, 18, 0, 0, 0.3],
+  coconut: [2.4, 14, 0, 0, 1.1], cocoa: [13.9, 128, 0, 0, 6.8], sf_choc: [11, 60, 0, 0, 3.3], honey: [0.4, 6, 0, 0, 0.2],
+  nutyeast: [2.4, 20, 44, 0, 6.3], pesto: [0.8, 250, 0.2, 0, 1.0], ketchup: [0.3, 15, 0, 0, 0.2],
+};
+const MICRO_KEYS = ['iron', 'ca', 'b12', 'vd', 'zn'];
+const microsFor = id => {
+  const r = MICRO_ROWS[id];
+  if (!r) return {};
+  const o = {};
+  MICRO_KEYS.forEach((k, i) => { if (r[i]) o[k] = r[i]; });
+  return o;
+};
+
 export const FOODS = ROWS.map(a => ({
   id: a[0], name: a[1], group: a[2], serv: a[3],
-  n: { k: a[4], p: a[5], c: a[6], f: a[7], fi: a[8] },
+  n: { k: a[4], p: a[5], c: a[6], f: a[7], fi: a[8], ...microsFor(a[0]) },
   vegan: !!a[9], servLabel: a[10], brand: a[11] || '', note: a[12] || '', builtIn: true,
 }));
 
@@ -260,7 +301,7 @@ RECIPES.forEach(r => {
   r.ing.forEach(([id, g]) => {
     const fd = FOOD[id];
     if (!fd) return;
-    for (const k in t) t[k] += (fd.n[k] || 0) * g / 100;
+    for (const k in fd.n) t[k] = (t[k] || 0) + (fd.n[k] || 0) * g / 100;
   });
   r.per = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v / r.serves]));
 });

@@ -165,6 +165,28 @@ export async function pushRecent(food) {
   await writeJSON('recent', next);
 }
 
+// ---- Favourites (stored like Recent: a copy of each food) ----
+export function useFavourites() {
+  return useStored(() => readJSON('favourites', []), []);
+}
+export async function toggleFavourite(food) {
+  const list = await readJSON('favourites', []);
+  const has = list.some(f => f.id === food.id);
+  await writeJSON('favourites', has ? list.filter(f => f.id !== food.id) : [food, ...list].slice(0, 60));
+  return !has;
+}
+
+// Copies one meal's foods from another day (e.g. "same as yesterday").
+export async function copyMeal(fromKey, toKey, meal) {
+  const from = await readJSON('day:' + fromKey, { entries: [], water: 0 });
+  const to = await readJSON('day:' + toKey, { entries: [], water: 0 });
+  const items = from.entries.filter(e => e.meal === meal);
+  items.forEach(e => to.entries.push({ ...e, id: uid() }));
+  await writeJSON('day:' + toKey, to);
+  diaryChanged();
+  return items.length;
+}
+
 // ---- Goals ----
 export function useGoals() {
   return useStored(async () => ({ ...DEFAULT_GOALS, ...(await readJSON('goals', {})) }), []);

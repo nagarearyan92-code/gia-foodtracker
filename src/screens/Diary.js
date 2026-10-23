@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { C, MACROS, MEALS, MICROS } from '../theme';
-import { addWater, amountLabel, dateKey, parseAmount, removeEntry, rescale, sumNutrients, undoWater, updateEntry, useDay, useGoals, useSetting } from '../store';
+import { addWater, amountLabel, copyMeal, dateKey, parseAmount, removeEntry, rescale, sumNutrients, undoWater, updateEntry, useDay, useGoals, useSetting } from '../store';
 import { DEFAULT_SUPPS, suppAmounts } from '../wellbeing';
 import AddFlow from '../AddFlow';
 import { RemindersInvite } from '../RemindersCard';
@@ -27,6 +27,8 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
   const [date, setDate] = useState(() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; });
   const key = dateKey(date);
   const day = useDay(key) || { entries: [], water: 0 };
+  const prevKey = dateKey(new Date(date.getTime() - 864e5));
+  const prev = useDay(prevKey) || { entries: [], water: 0 };
   const goals = useGoals();
   const [flow, setFlow] = useState(null); // { meal, start }
   const [entry, setEntry] = useState(null); // diary item being edited
@@ -107,9 +109,17 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
                   </View>
                 </Pressable>
               ))}
-              <Pressable onPress={() => setFlow({ meal, start: 'search' })} style={{ paddingVertical: 10 }}>
-                <Text style={{ color: C.accent, fontWeight: '700' }}>+ Add food</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Pressable onPress={() => setFlow({ meal, start: 'search' })} style={{ paddingVertical: 10 }}>
+                  <Text style={{ color: C.accent, fontWeight: '700' }}>+ Add food</Text>
+                </Pressable>
+                {!items.length && prev.entries.some(e => e.meal === meal) ? (
+                  <Pressable hitSlop={6} style={{ paddingVertical: 10, flexShrink: 1 }}
+                    onPress={async () => { const n = await copyMeal(prevKey, key, meal); onToast && onToast(`Added ${n} item${n === 1 ? '' : 's'} to ${meal}`); }}>
+                    <Text style={{ color: C.muted, fontWeight: '700' }} numberOfLines={1}>{dayTitle(date) === 'Today' ? '↺ Same as yesterday' : '↺ Same as day before'}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </Card>
           );
         })}
@@ -138,7 +148,7 @@ export default function Diary({ onToast, onOpenRecipes, onOpenCycle }) {
         <Card>
           <H style={{ marginBottom: 4 }}>Vitamins & minerals</H>
           <Muted style={{ marginBottom: 10 }}>
-            Counted from scanned and label-entered foods that list them.{suppNote} Key ones to watch on a vegetarian diet: iron, B12, calcium, zinc.
+            Counted from your foods (built-in foods use typical values).{suppNote} Key ones to watch on a vegetarian diet: iron, B12, calcium, zinc.
           </Muted>
           {microsWithData.length === 0
             ? <Muted>Nothing recorded yet today.</Muted>

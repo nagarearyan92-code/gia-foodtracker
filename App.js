@@ -9,10 +9,15 @@ import Trends from './src/screens/Trends';
 import Me from './src/screens/Me';
 import Cycle from './src/screens/Cycle';
 import { reschedule } from './src/reminders';
-import { onDiaryChange } from './src/store';
+import { onDiaryChange, readSetting, writeSetting } from './src/store';
 import { onRestore } from './src/backup';
-import Buddy from './src/Buddy';
+import Buddy, { openBuddy } from './src/Buddy';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import { deliverDue } from './src/outreach';
 import { useMoodTheme } from './src/moodTheme';
+import { GiftOverlay } from './src/GiftCards';
+import './src/gifts'; // defines the background gift check
 
 const TABS = [
   ['diary', 'Diary', '◷'],
@@ -35,6 +40,25 @@ export default function App() {
   const welcomeFade = useRef(new Animated.Value(1)).current;
   const hideWelcome = () => Animated.timing(welcomeFade, { toValue: 0, duration: 450, useNativeDriver: true }).start(() => setWelcome(false));
   useEffect(() => { const t = setTimeout(hideWelcome, 3000); return () => clearTimeout(t); }, []); // eslint-disable-line
+
+  // Miss Curious Bae's own messages: write anything due when the app opens, and open the chat
+  // when she taps one of those notifications.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    deliverDue();
+    const sub = AppState.addEventListener('change', st => st === 'active' && deliverDue());
+    const handle = async r => {
+      const id = r?.notification?.request?.identifier;
+      if (!r?.notification?.request?.content?.data?.bae || !id) return;
+      if ((await readSetting('baeHandled', '')) === id) return; // already opened this one
+      await writeSetting('baeHandled', id);
+      await deliverDue();
+      openBuddy();
+    };
+    Notifications.getLastNotificationResponseAsync().then(handle).catch(() => {});
+    const tap = Notifications.addNotificationResponseReceivedListener(handle);
+    return () => { sub.remove(); tap.remove(); };
+  }, []);
 
   // Keep reminders planned ahead, and skip today's ones for meals already logged.
   useEffect(() => {
@@ -83,6 +107,7 @@ export default function App() {
           })}
         </View>
         <Buddy />
+        {!welcome ? <GiftOverlay /> : null}
         {welcome ? (
           <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: welcomeFade }}>
             <Pressable onPress={hideWelcome} style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 6 }}>

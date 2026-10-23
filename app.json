@@ -57,7 +57,8 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "backgroundColor": "#FFF0F4"
   }
